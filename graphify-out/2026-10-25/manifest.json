@@ -1,0 +1,26 @@
+{
+  "matrix_demo.py": {
+    "mtime": 1792933923.8605402,
+    "seen": 1792936107.7492754,
+    "ast_hash": "92301135bed647be4ef8cbd6e2436419",
+    "semantic_hash": "92301135bed647be4ef8cbd6e2436419"
+  },
+  "linear_algebra_verifier.py": {
+    "mtime": 1792936733.0653312,
+    "seen": 1792937139.039667,
+    "ast_hash": "5a1ba9ca29089993048ff455db285499",
+    "semantic_hash": "5a1ba9ca29089993048ff455db285499"
+  },
+  "package.json": {
+    "mtime": 1792936973.3181322,
+    "seen": 1792937139.0399625,
+    "ast_hash": "edbf712669efbb56a090eaa58420f6cc",
+    "semantic_hash": "edbf712669efbb56a090eaa58420f6cc"
+  },
+  "server.js": {
+    "mtime": 1792937074.7511964,
+    "seen": 1792937139.0399656,
+    "ast_hash": "472b915c1aa8e59b1ce6d1fccbfffef8",
+    "semantic_hash": "472b915c1aa8e59b1ce6d1fccbfffef8"
+  }
+}

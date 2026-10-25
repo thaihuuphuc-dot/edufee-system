@@ -12,15 +12,45 @@
     "semantic_hash": "5a1ba9ca29089993048ff455db285499"
   },
   "package.json": {
-    "mtime": 1792936973.3181322,
-    "seen": 1792937139.0399625,
-    "ast_hash": "edbf712669efbb56a090eaa58420f6cc",
-    "semantic_hash": "edbf712669efbb56a090eaa58420f6cc"
+    "mtime": 1792938980.8156989,
+    "seen": 1792940563.2440732,
+    "ast_hash": "f2670b1d033d772aede176891b4806c7",
+    "semantic_hash": "f2670b1d033d772aede176891b4806c7"
   },
   "server.js": {
-    "mtime": 1792937074.7511964,
-    "seen": 1792937139.0399656,
-    "ast_hash": "472b915c1aa8e59b1ce6d1fccbfffef8",
-    "semantic_hash": "472b915c1aa8e59b1ce6d1fccbfffef8"
+    "mtime": 1792937906.1446757,
+    "seen": 1792940563.2440786,
+    "ast_hash": "00df1496a2527bedb4938b3357f6de5e",
+    "semantic_hash": "00df1496a2527bedb4938b3357f6de5e"
+  },
+  "client/.oxlintrc.json": {
+    "mtime": 1792937963.2921522,
+    "seen": 1792940563.2431276,
+    "ast_hash": "5e6e3cea3e89137071c142dd7835b0ef",
+    "semantic_hash": "5e6e3cea3e89137071c142dd7835b0ef"
+  },
+  "client/package.json": {
+    "mtime": 1792938627.858111,
+    "seen": 1792940563.24314,
+    "ast_hash": "3bf444fe0031b7cc00c2458244965b06",
+    "semantic_hash": "3bf444fe0031b7cc00c2458244965b06"
+  },
+  "client/src/App.jsx": {
+    "mtime": 1792938869.230901,
+    "seen": 1792940563.2431474,
+    "ast_hash": "fca1e4d4f37db2344054bab29dd106d2",
+    "semantic_hash": "fca1e4d4f37db2344054bab29dd106d2"
+  },
+  "client/src/main.jsx": {
+    "mtime": 1792937963.4117095,
+    "seen": 1792940563.2431526,
+    "ast_hash": "e13723e2574429d9a6d849727e3ff695",
+    "semantic_hash": "e13723e2574429d9a6d849727e3ff695"
+  },
+  "client/vite.config.js": {
+    "mtime": 1792938155.249277,
+    "seen": 1792940563.2431574,
+    "ast_hash": "7a55af331c083a6a9f71f492bf296afa",
+    "semantic_hash": "7a55af331c083a6a9f71f492bf296afa"
   }
 }
