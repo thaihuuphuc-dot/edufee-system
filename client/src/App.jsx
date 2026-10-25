@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  Tooltip, 
+  ResponsiveContainer, 
+  Cell 
+} from 'recharts';
+import { 
   Users, 
   Wallet, 
   Clock, 
@@ -12,7 +21,10 @@ import {
   X,
   Filter,
   Plus,
-  Minus
+  Minus,
+  Eye,
+  BarChart3,
+  Download
 } from 'lucide-react';
 
 export default function App() {
@@ -22,11 +34,12 @@ export default function App() {
   const [feePerPeriod, setFeePerPeriod] = useState(150000);
   const [attendedPeriods, setAttendedPeriods] = useState(8);
   
-  // States cho Pha 2 UI
+  // States Pha 2 & 3 UI
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedGradeFilter, setSelectedGradeFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQr, setSelectedQr] = useState(null);
+  const [previewInvoice, setPreviewInvoice] = useState(null); // Modal Xem trước Phiếu thu
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -66,7 +79,7 @@ export default function App() {
       if (res.ok) {
         setName('');
         setGrade('');
-        setIsDrawerOpen(false); // Đóng Drawer sau khi thêm thành công
+        setIsDrawerOpen(false);
         await fetchStudents();
       } else {
         alert('Lỗi khi thêm học sinh!');
@@ -78,7 +91,7 @@ export default function App() {
     }
   };
 
-  // Cập nhật nhanh số buổi học (+ / -)
+  // Cập nhật nhanh số buổi (+ / -)
   const handleUpdatePeriods = async (id, delta) => {
     const student = students.find(s => s.id === id);
     if (!student) return;
@@ -100,13 +113,13 @@ export default function App() {
     }
   };
 
-  // Danh sách các lớp học duy nhất để làm bộ lọc Filter
+  // Danh sách các lớp học duy nhất
   const availableGrades = useMemo(() => {
     const gradesSet = new Set(students.map(s => s.grade));
     return ['ALL', ...Array.from(gradesSet)];
   }, [students]);
 
-  // Bộ lọc kết hợp Search Term + Grade Filter
+  // Bộ lọc Search Term + Grade
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
       const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -116,12 +129,28 @@ export default function App() {
     });
   }, [students, searchTerm, selectedGradeFilter]);
 
-  // Thống kê số liệu
+  // Thống kê tổng quan
   const stats = useMemo(() => {
     const totalStudents = students.length;
     const totalRevenue = students.reduce((acc, curr) => acc + (Number(curr.totalFee) || 0), 0);
     const totalPeriods = students.reduce((acc, curr) => acc + (Number(curr.attendedPeriods) || 0), 0);
     return { totalStudents, totalRevenue, totalPeriods };
+  }, [students]);
+
+  // Dữ liệu cho Biểu đồ Doanh thu Recharts (Gom nhóm theo Lớp)
+  const chartData = useMemo(() => {
+    const map = {};
+    students.forEach(s => {
+      if (!map[s.grade]) {
+        map[s.grade] = 0;
+      }
+      map[s.grade] += Number(s.totalFee) || 0;
+    });
+
+    return Object.keys(map).map(grade => ({
+      grade: `Lớp ${grade}`,
+      revenue: map[grade]
+    }));
   }, [students]);
 
   // Xuất phiếu thu PDF A5
@@ -175,6 +204,8 @@ export default function App() {
     }
   };
 
+  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+
   return (
     <div className="min-h-screen bg-slate-50/50 p-6 md:p-10 font-sans text-slate-800">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -199,7 +230,7 @@ export default function App() {
               <UserPlus className="w-4 h-4" /> Thêm học sinh
             </button>
             <span className="px-3.5 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-100">
-              Phase 2 Interactive UX
+              Phase 3 Pro Analytics
             </span>
           </div>
         </header>
@@ -249,10 +280,36 @@ export default function App() {
           </div>
         </div>
 
-        {/* 2. Main Data Table with Advanced Filters */}
+        {/* 2. Biểu đồ Phân tích Doanh thu theo Lớp (Recharts) */}
+        {chartData.length > 0 && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+              <BarChart3 className="w-5 h-5 text-indigo-600" />
+              <h2 className="text-lg font-bold text-slate-800">Biểu đồ Doanh thu theo Lớp học</h2>
+            </div>
+            <div className="h-64 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+                  <XAxis dataKey="grade" tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <YAxis tickFormatter={(val) => `${val / 1000}k`} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <Tooltip 
+                    formatter={(value) => [`${Number(value).toLocaleString('vi-VN')} đ`, 'Doanh thu']}
+                    contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  />
+                  <Bar dataKey="revenue" radius={[8, 8, 0, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* 3. Main Data Table with Advanced Filters */}
         <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
           
-          {/* Thanh Công Cụ: Filter Lớp + Search Bar */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-bold text-slate-800">Danh sách học sinh</h2>
@@ -260,7 +317,6 @@ export default function App() {
             </div>
             
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-              {/* Lọc theo Lớp */}
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs w-full sm:w-auto">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-slate-500 font-medium">Lớp:</span>
@@ -275,7 +331,6 @@ export default function App() {
                 </select>
               </div>
 
-              {/* Ô Tìm kiếm */}
               <div className="relative w-full sm:w-64">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input 
@@ -289,14 +344,13 @@ export default function App() {
             </div>
           </div>
 
-          {/* Bảng Dữ Liệu Học Sinh */}
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="py-3 px-4">Học sinh</th>
                   <th className="py-3 px-4">Lớp</th>
-                  <th className="py-3 px-4">Điều chỉnh số buổi</th>
+                  <th className="py-3 px-4">Số buổi</th>
                   <th className="py-3 px-4">Tổng tiền học phí</th>
                   <th className="py-3 px-4 text-right">Hành động</th>
                 </tr>
@@ -332,7 +386,6 @@ export default function App() {
                           <button 
                             onClick={() => handleUpdatePeriods(s.id, -1)}
                             className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
-                            title="Giảm 1 buổi"
                           >
                             <Minus className="w-3.5 h-3.5" />
                           </button>
@@ -342,7 +395,6 @@ export default function App() {
                           <button 
                             onClick={() => handleUpdatePeriods(s.id, 1)}
                             className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
-                            title="Tăng 1 buổi"
                           >
                             <Plus className="w-3.5 h-3.5" />
                           </button>
@@ -354,6 +406,13 @@ export default function App() {
                       <td className="py-3.5 px-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button 
+                            onClick={() => setPreviewInvoice(s)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
+                            title="Xem trước phiếu thu A5"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-slate-500" /> Xem trước
+                          </button>
+                          <button 
                             onClick={() => setSelectedQr(s)}
                             className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
                           >
@@ -363,7 +422,7 @@ export default function App() {
                             onClick={() => handleExportPDF(s)}
                             className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition shadow-sm shadow-emerald-100"
                           >
-                            <FileText className="w-3.5 h-3.5" /> In PDF
+                            <Download className="w-3.5 h-3.5" /> Tải PDF
                           </button>
                         </div>
                       </td>
@@ -375,7 +434,68 @@ export default function App() {
           </div>
         </div>
 
-        {/* 3. Slide-over Drawer Modal Thêm Học Sinh */}
+        {/* 4. Modal Live Preview Hóa Đơn A5 */}
+        {previewInvoice && (
+          <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-slate-100">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-600" /> Xem trước Phiếu thu A5
+                </h3>
+                <button onClick={() => setPreviewInvoice(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Khung mô phỏng tờ giấy A5 */}
+              <div className="border border-slate-200 p-6 rounded-xl bg-slate-50/50 space-y-4 text-xs font-sans shadow-inner">
+                <div className="text-center space-y-1 border-b border-slate-200 pb-3">
+                  <h4 className="font-extrabold text-slate-900 text-base uppercase tracking-wide">Phiếu Thu Học Phí</h4>
+                  <p className="text-slate-400">Ngày xuất: {new Date().toLocaleDateString('vi-VN')}</p>
+                </div>
+
+                <div className="space-y-2 text-slate-700">
+                  <p><span className="text-slate-400">Họ và tên học sinh:</span> <strong className="text-slate-900">{previewInvoice.name}</strong></p>
+                  <p><span className="text-slate-400">Lớp học:</span> <strong>{previewInvoice.grade}</strong></p>
+                  <p><span className="text-slate-400">Số buổi đã học:</span> {previewInvoice.attendedPeriods} buổi</p>
+                  <p><span className="text-slate-400">Đơn giá/buổi:</span> {Number(previewInvoice.feePerPeriod).toLocaleString('vi-VN')} VNĐ</p>
+                </div>
+
+                <div className="border-t border-b border-slate-200 py-2.5 text-sm flex justify-between font-bold text-indigo-600">
+                  <span>TỔNG CỘNG:</span>
+                  <span>{Number(previewInvoice.totalFee).toLocaleString('vi-VN')} VNĐ</span>
+                </div>
+
+                <div className="space-y-1 text-[11px] text-slate-500 bg-white p-3 rounded-lg border border-slate-200/60">
+                  <p className="font-semibold text-slate-700">Thông tin chuyển khoản:</p>
+                  <p>• Ngân hàng: <strong>BIDV (CN Củ Chi)</strong></p>[cite: 1]
+                  <p>• Số tài khoản: <strong className="text-indigo-600">8813196135</strong></p>[cite: 1]
+                  <p>• Chủ tài khoản: <strong>THÁI HỮU PHÚC</strong></p>[cite: 1]
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setPreviewInvoice(null)}
+                  className="w-1/2 py-2.5 bg-slate-100 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-200 transition"
+                >
+                  Đóng
+                </button>
+                <button 
+                  onClick={() => {
+                    handleExportPDF(previewInvoice);
+                    setPreviewInvoice(null);
+                  }}
+                  className="w-1/2 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-emerald-100 flex items-center justify-center gap-2 transition"
+                >
+                  <Download className="w-4 h-4" /> Tải về PDF
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. Drawer Thêm Học Sinh */}
         {isDrawerOpen && (
           <div className="fixed inset-0 z-50 overflow-hidden">
             <div 
@@ -469,7 +589,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Modal hiển thị VietQR BIDV */}
+        {/* 6. Modal VietQR BIDV */}
         {selectedQr && (
           <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-3xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl border border-slate-100">

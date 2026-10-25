@@ -24,6 +24,7 @@
       "client_package_dependencies",
       "client_package_dependencies_html2canvas",
       "client_package_dependencies_jspdf",
+      "client_package_dependencies_lucide_react",
       "client_package_dependencies_react",
       "client_package_dependencies_react_dom",
       "client_src_app",
@@ -32,6 +33,7 @@
       "client_src_main",
       "ref_html2canvas",
       "ref_jspdf",
+      "ref_lucide_react",
       "ref_react",
       "ref_react_dom"
     ],
@@ -102,7 +104,7 @@
   },
   "cohesion": {
     "0": 0.1503267973856209,
-    "1": 0.20512820512820512,
+    "1": 0.18095238095238095,
     "2": 0.16666666666666666,
     "3": 0.25,
     "4": 0.2857142857142857,
@@ -149,6 +151,11 @@
       "degree": 3
     },
     {
+      "id": "ref_lucide_react",
+      "label": "lucide-react",
+      "degree": 3
+    },
+    {
       "id": "ref_react_dom",
       "label": "react-dom",
       "degree": 3
@@ -156,11 +163,6 @@
     {
       "id": "ref_vitejs_plugin_react",
       "label": "@vitejs/plugin-react",
-      "degree": 3
-    },
-    {
-      "id": "ref_vite",
-      "label": "vite",
       "degree": 3
     }
   ],

@@ -30,16 +30,16 @@
     "semantic_hash": "5e6e3cea3e89137071c142dd7835b0ef"
   },
   "client/package.json": {
-    "mtime": 1792940752.2217112,
-    "seen": 1792941371.7064853,
-    "ast_hash": "319e2083f1d8fedfc0a14993c9d4f668",
-    "semantic_hash": "319e2083f1d8fedfc0a14993c9d4f668"
+    "mtime": 1792941559.4298975,
+    "seen": 1792941746.2240996,
+    "ast_hash": "0b6270004c27be146aa29919cfb96e46",
+    "semantic_hash": "0b6270004c27be146aa29919cfb96e46"
   },
   "client/src/App.jsx": {
-    "mtime": 1792941297.3224816,
-    "seen": 1792941371.7064922,
-    "ast_hash": "086d484205c179fd16ba1dd49b6c73da",
-    "semantic_hash": "086d484205c179fd16ba1dd49b6c73da"
+    "mtime": 1792941643.2281647,
+    "seen": 1792941746.224106,
+    "ast_hash": "ab0a3d7c2a6b87b9bb26761bb3306cba",
+    "semantic_hash": "ab0a3d7c2a6b87b9bb26761bb3306cba"
   },
   "client/src/main.jsx": {
     "mtime": 1792937963.4117095,
