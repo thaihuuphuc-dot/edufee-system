@@ -1,0 +1,106 @@
+{
+  "communities": {
+    "0": [
+      "package",
+      "package_author",
+      "package_description",
+      "package_keywords",
+      "package_license",
+      "package_main",
+      "package_name",
+      "package_type",
+      "package_version"
+    ],
+    "1": [
+      "package_dependencies",
+      "package_dependencies_express",
+      "ref_express",
+      "server",
+      "server_app"
+    ],
+    "2": [
+      "linear_algebra_verifier",
+      "sympy"
+    ],
+    "3": [
+      "matrix_demo",
+      "matrix_demo_det_2x2"
+    ],
+    "4": [
+      "package_scripts",
+      "package_scripts_test"
+    ]
+  },
+  "cohesion": {
+    "0": 0.2222222222222222,
+    "1": 0.4,
+    "2": 1.0,
+    "3": 1.0,
+    "4": 1.0
+  },
+  "gods": [
+    {
+      "id": "ref_express",
+      "label": "express",
+      "degree": 3
+    },
+    {
+      "id": "package_dependencies_express",
+      "label": "express@^5.3.0",
+      "degree": 2
+    },
+    {
+      "id": "package_scripts",
+      "label": "scripts",
+      "degree": 2
+    },
+    {
+      "id": "package_author",
+      "label": "author",
+      "degree": 1
+    },
+    {
+      "id": "package_keywords",
+      "label": "keywords",
+      "degree": 1
+    },
+    {
+      "id": "package_license",
+      "label": "license",
+      "degree": 1
+    },
+    {
+      "id": "package_main",
+      "label": "main",
+      "degree": 1
+    },
+    {
+      "id": "server_app",
+      "label": "app",
+      "degree": 1
+    },
+    {
+      "id": "package_scripts_test",
+      "label": "test",
+      "degree": 1
+    }
+  ],
+  "surprises": [],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `express` connect `express` to `package.json`?",
+      "why": "High betweenness centrality (0.184) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `scripts` connect `scripts` to `package.json`?",
+      "why": "High betweenness centrality (0.082) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `dependencies` connect `express` to `package.json`?",
+      "why": "High betweenness centrality (0.032) - this node is a cross-community bridge."
+    }
+  ]
+}
