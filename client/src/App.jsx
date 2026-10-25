@@ -24,7 +24,10 @@ import {
   Minus,
   Eye,
   BarChart3,
-  Download
+  Download,
+  CheckCircle2,
+  AlertCircle,
+  Trash2
 } from 'lucide-react';
 
 export default function App() {
@@ -34,12 +37,14 @@ export default function App() {
   const [feePerPeriod, setFeePerPeriod] = useState(150000);
   const [attendedPeriods, setAttendedPeriods] = useState(8);
   
-  // States Pha 2 & 3 UI
+  // States Pha 2, 3 & 4 UI
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedGradeFilter, setSelectedGradeFilter] = useState('ALL');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedQr, setSelectedQr] = useState(null);
-  const [previewInvoice, setPreviewInvoice] = useState(null); // Modal Xem trước Phiếu thu
+  const [previewInvoice, setPreviewInvoice] = useState(null);
+  const [deletingStudent, setDeletingStudent] = useState(null); // Modal Xác nhận Xóa
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -52,7 +57,12 @@ export default function App() {
       const res = await fetch(API_BASE);
       if (!res.ok) throw new Error('Không thể kết nối API');
       const data = await res.json();
-      setStudents(data);
+      
+      const mappedData = data.map(s => ({
+        ...s,
+        status: s.status || 'UNPAID'
+      }));
+      setStudents(mappedData);
     } catch (err) {
       console.error('Lỗi kết nối Backend:', err);
       setErrorMsg('Chưa kết nối được với Server (Cổng 3000). Đảm bảo backend đã khởi chạy!');
@@ -73,7 +83,7 @@ export default function App() {
       const res = await fetch(API_BASE, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, grade, feePerPeriod, attendedPeriods })
+        body: JSON.stringify({ name, grade, feePerPeriod, attendedPeriods, status: 'UNPAID' })
       });
 
       if (res.ok) {
@@ -113,38 +123,79 @@ export default function App() {
     }
   };
 
+  // Toggle trạng thái thanh toán (PAID / UNPAID) 1-Click
+  const handleToggleStatus = async (id, currentStatus) => {
+    const nextStatus = currentStatus === 'PAID' ? 'UNPAID' : 'PAID';
+    setStudents(prev => prev.map(s => s.id === id ? { ...s, status: nextStatus } : s));
+
+    try {
+      await fetch(`${API_BASE}/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      });
+    } catch (err) {
+      console.error('Lỗi cập nhật trạng thái:', err);
+    }
+  };
+
+  // Thực hiện Xóa học sinh qua DELETE API
+  const handleDeleteStudent = async () => {
+    if (!deletingStudent) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/${deletingStudent.id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setStudents(prev => prev.filter(s => s.id !== deletingStudent.id));
+        setDeletingStudent(null);
+      } else {
+        alert('Lỗi khi xóa học sinh!');
+      }
+    } catch (err) {
+      console.error('Lỗi khi gọi API xóa:', err);
+      alert('Không thể kết nối đến Backend!');
+    }
+  };
+
   // Danh sách các lớp học duy nhất
   const availableGrades = useMemo(() => {
     const gradesSet = new Set(students.map(s => s.grade));
     return ['ALL', ...Array.from(gradesSet)];
   }, [students]);
 
-  // Bộ lọc Search Term + Grade
+  // Bộ lọc Search Term + Grade + Status
   const filteredStudents = useMemo(() => {
     return students.filter(s => {
       const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             s.grade.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesGrade = selectedGradeFilter === 'ALL' || s.grade === selectedGradeFilter;
-      return matchesSearch && matchesGrade;
+      const matchesStatus = selectedStatusFilter === 'ALL' || s.status === selectedStatusFilter;
+      return matchesSearch && matchesGrade && matchesStatus;
     });
-  }, [students, searchTerm, selectedGradeFilter]);
+  }, [students, searchTerm, selectedGradeFilter, selectedStatusFilter]);
 
   // Thống kê tổng quan
   const stats = useMemo(() => {
     const totalStudents = students.length;
-    const totalRevenue = students.reduce((acc, curr) => acc + (Number(curr.totalFee) || 0), 0);
+    const totalRevenue = students.reduce((acc, curr) => acc + (Number(curr.totalFee || curr.feePerPeriod * curr.attendedPeriods) || 0), 0);
+    const collectedRevenue = students
+      .filter(s => s.status === 'PAID')
+      .reduce((acc, curr) => acc + (Number(curr.totalFee || curr.feePerPeriod * curr.attendedPeriods) || 0), 0);
     const totalPeriods = students.reduce((acc, curr) => acc + (Number(curr.attendedPeriods) || 0), 0);
-    return { totalStudents, totalRevenue, totalPeriods };
+    return { totalStudents, totalRevenue, collectedRevenue, totalPeriods };
   }, [students]);
 
-  // Dữ liệu cho Biểu đồ Doanh thu Recharts (Gom nhóm theo Lớp)
+  // Biểu đồ Doanh thu Recharts
   const chartData = useMemo(() => {
     const map = {};
     students.forEach(s => {
       if (!map[s.grade]) {
         map[s.grade] = 0;
       }
-      map[s.grade] += Number(s.totalFee) || 0;
+      map[s.grade] += Number(s.totalFee || s.feePerPeriod * s.attendedPeriods) || 0;
     });
 
     return Object.keys(map).map(grade => ({
@@ -183,7 +234,7 @@ export default function App() {
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(11);
-      doc.text(`TONG CONG: ${Number(student.totalFee).toLocaleString('vi-VN')} VND`, 12, 73);
+      doc.text(`TONG CONG: ${Number(student.totalFee || student.feePerPeriod * student.attendedPeriods).toLocaleString('vi-VN')} VND`, 12, 73);
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
@@ -261,7 +312,9 @@ export default function App() {
             <div className="space-y-1">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng doanh thu</p>
               <h3 className="text-3xl font-extrabold text-indigo-600">{stats.totalRevenue.toLocaleString('vi-VN')} <span className="text-sm font-semibold">đ</span></h3>
-              <p className="text-xs text-slate-500">Tích lũy từ các buổi học</p>
+              <p className="text-xs text-emerald-600 font-semibold">
+                Thực thu: {stats.collectedRevenue.toLocaleString('vi-VN')} đ
+              </p>
             </div>
             <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl">
               <Wallet className="w-7 h-7" />
@@ -317,6 +370,29 @@ export default function App() {
             </div>
             
             <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+              {/* Tab Lọc Trạng thái Thanh toán */}
+              <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600 w-full sm:w-auto justify-center">
+                <button
+                  onClick={() => setSelectedStatusFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${selectedStatusFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'hover:text-slate-900'}`}
+                >
+                  Tất cả
+                </button>
+                <button
+                  onClick={() => setSelectedStatusFilter('UNPAID')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${selectedStatusFilter === 'UNPAID' ? 'bg-amber-500 text-white font-bold shadow-xs' : 'hover:text-slate-900'}`}
+                >
+                  Chờ thu
+                </button>
+                <button
+                  onClick={() => setSelectedStatusFilter('PAID')}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${selectedStatusFilter === 'PAID' ? 'bg-emerald-600 text-white font-bold shadow-xs' : 'hover:text-slate-900'}`}
+                >
+                  Đã thu
+                </button>
+              </div>
+
+              {/* Lọc Lớp học */}
               <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs w-full sm:w-auto">
                 <Filter className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-slate-500 font-medium">Lớp:</span>
@@ -331,7 +407,8 @@ export default function App() {
                 </select>
               </div>
 
-              <div className="relative w-full sm:w-64">
+              {/* Ô Tìm kiếm */}
+              <div className="relative w-full sm:w-56">
                 <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input 
                   type="text" 
@@ -352,82 +429,110 @@ export default function App() {
                   <th className="py-3 px-4">Lớp</th>
                   <th className="py-3 px-4">Số buổi</th>
                   <th className="py-3 px-4">Tổng tiền học phí</th>
+                  <th className="py-3 px-4 text-center">Trạng thái</th>
                   <th className="py-3 px-4 text-right">Hành động</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="py-8 text-center text-slate-400 text-xs">
+                    <td colSpan="6" className="py-8 text-center text-slate-400 text-xs">
                       Không có học sinh nào phù hợp với bộ lọc.
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs shadow-sm">
-                            {s.name.charAt(0)}
+                  filteredStudents.map((s) => {
+                    const isPaid = s.status === 'PAID';
+
+                    return (
+                      <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs shadow-sm">
+                              {s.name.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-800">{s.name}</p>
+                              <p className="text-[11px] text-slate-400">{Number(s.feePerPeriod).toLocaleString('vi-VN')} đ/buổi</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-slate-800">{s.name}</p>
-                            <p className="text-[11px] text-slate-400">{Number(s.feePerPeriod).toLocaleString('vi-VN')} đ/buổi</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold">
-                          {s.grade}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <button 
-                            onClick={() => handleUpdatePeriods(s.id, -1)}
-                            className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
-                          >
-                            <Minus className="w-3.5 h-3.5" />
-                          </button>
-                          <span className="font-semibold text-slate-700 w-12 text-center text-xs">
-                            {s.attendedPeriods} buổi
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-md text-xs font-semibold">
+                            {s.grade}
                           </span>
-                          <button 
-                            onClick={() => handleUpdatePeriods(s.id, 1)}
-                            className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleUpdatePeriods(s.id, -1)}
+                              className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="font-semibold text-slate-700 w-12 text-center text-xs">
+                              {s.attendedPeriods} buổi
+                            </span>
+                            <button 
+                              onClick={() => handleUpdatePeriods(s.id, 1)}
+                              className="p-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-bold text-indigo-600">
+                          {Number(s.totalFee || s.feePerPeriod * s.attendedPeriods).toLocaleString('vi-VN')} đ
+                        </td>
+                        <td className="py-3.5 px-4 text-center">
+                          <button
+                            onClick={() => handleToggleStatus(s.id, s.status)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold cursor-pointer transition-all active:scale-95 ${
+                              isPaid
+                                ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                            }`}
+                            title="Bấm để đổi trạng thái"
                           >
-                            <Plus className="w-3.5 h-3.5" />
+                            {isPaid ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                            {isPaid ? 'Đã thu' : 'Chờ thu'}
                           </button>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 font-bold text-indigo-600">
-                        {Number(s.totalFee).toLocaleString('vi-VN')} đ
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => setPreviewInvoice(s)}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
-                            title="Xem trước phiếu thu A5"
-                          >
-                            <Eye className="w-3.5 h-3.5 text-slate-500" /> Xem trước
-                          </button>
-                          <button 
-                            onClick={() => setSelectedQr(s)}
-                            className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
-                          >
-                            <QrCode className="w-3.5 h-3.5" /> VietQR
-                          </button>
-                          <button 
-                            onClick={() => handleExportPDF(s)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition shadow-sm shadow-emerald-100"
-                          >
-                            <Download className="w-3.5 h-3.5" /> Tải PDF
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button 
+                              onClick={() => setPreviewInvoice(s)}
+                              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
+                              title="Xem trước phiếu thu A5"
+                            >
+                              <Eye className="w-3.5 h-3.5 text-slate-500" /> Xem trước
+                            </button>
+                            <button 
+                              onClick={() => setSelectedQr(s)}
+                              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition"
+                            >
+                              <QrCode className="w-3.5 h-3.5" /> VietQR
+                            </button>
+                            <button 
+                              onClick={() => handleExportPDF(s)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-lg flex items-center gap-1.5 transition shadow-sm shadow-emerald-100"
+                            >
+                              <Download className="w-3.5 h-3.5" /> Tải PDF
+                            </button>
+
+                            {/* Nút Xóa Học Sinh */}
+                            <button 
+                              onClick={() => setDeletingStudent(s)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                              title="Xóa học sinh"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -463,14 +568,14 @@ export default function App() {
 
                 <div className="border-t border-b border-slate-200 py-2.5 text-sm flex justify-between font-bold text-indigo-600">
                   <span>TỔNG CỘNG:</span>
-                  <span>{Number(previewInvoice.totalFee).toLocaleString('vi-VN')} VNĐ</span>
+                  <span>{Number(previewInvoice.totalFee || previewInvoice.feePerPeriod * previewInvoice.attendedPeriods).toLocaleString('vi-VN')} VNĐ</span>
                 </div>
 
                 <div className="space-y-1 text-[11px] text-slate-500 bg-white p-3 rounded-lg border border-slate-200/60">
                   <p className="font-semibold text-slate-700">Thông tin chuyển khoản:</p>
-                  <p>• Ngân hàng: <strong>BIDV (CN Củ Chi)</strong></p>[cite: 1]
-                  <p>• Số tài khoản: <strong className="text-indigo-600">8813196135</strong></p>[cite: 1]
-                  <p>• Chủ tài khoản: <strong>THÁI HỮU PHÚC</strong></p>[cite: 1]
+                  <p>Ngân hàng: <strong>BIDV (CN Củ Chi)</strong></p>
+                  <p>Số tài khoản: <strong className="text-indigo-600">8813196135</strong></p>
+                  <p>Chủ tài khoản: <strong>THÁI HỮU PHÚC</strong></p>
                 </div>
               </div>
 
@@ -605,11 +710,11 @@ export default function App() {
               <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-left text-xs space-y-1.5">
                 <p className="text-slate-500">Chủ tài khoản: <span className="font-bold text-slate-800">THÁI HỮU PHÚC</span></p>
                 <p className="text-slate-500">Số tài khoản: <span className="font-bold text-indigo-600">8813196135</span></p>
-                <p className="text-slate-500">Ngân hàng: <span className="font-semibold text-slate-700">BIDV (CN Củ Chi)</span></p>[cite: 1]
+                <p className="text-slate-500">Ngân hàng: <span className="font-semibold text-slate-700">BIDV (CN Củ Chi)</span></p>
               </div>
 
               <div className="text-base font-extrabold text-emerald-600">
-                {Number(selectedQr.totalFee).toLocaleString('vi-VN')} VNĐ
+                {Number(selectedQr.totalFee || selectedQr.feePerPeriod * selectedQr.attendedPeriods).toLocaleString('vi-VN')} VNĐ
               </div>
 
               <button 
@@ -621,6 +726,40 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* 7. Modal Xác Nhận Xóa Học Sinh */}
+        {deletingStudent && (
+          <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl border border-slate-100">
+              <div className="flex items-center gap-3 text-rose-600">
+                <div className="p-2.5 bg-rose-50 rounded-xl">
+                  <Trash2 className="w-6 h-6" />
+                </div>
+                <h3 className="font-bold text-slate-900 text-lg">Xác nhận xóa</h3>
+              </div>
+              
+              <p className="text-sm text-slate-600">
+                Bạn có chắc chắn muốn xóa học sinh <strong className="text-slate-900">{deletingStudent.name}</strong> (Lớp {deletingStudent.grade}) khỏi hệ thống? Dữ liệu này không thể khôi phục.
+              </p>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => setDeletingStudent(null)}
+                  className="w-1/2 py-2.5 bg-slate-100 text-slate-700 font-semibold text-sm rounded-xl hover:bg-slate-200 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleDeleteStudent}
+                  className="w-1/2 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm rounded-xl shadow-md shadow-rose-100 transition"
+                >
+                  Xóa luôn
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
