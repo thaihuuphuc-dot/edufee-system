@@ -1,2 +1,7 @@
 node_modules/  
 graphify-out/cache/  
+client/node_modules/
+client/dist/
+.env
+uploads/*
+!uploads/.gitkeep

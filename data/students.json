@@ -1,34 +1,30 @@
 [
   {
     "id": 1,
-    "name": "Nguyễn Văn A",
-    "grade": "10A1",
-    "feePerPeriod": 150000,
-    "attendedPeriods": 8,
-    "status": "PAID"
+    "name": "An Khang",
+    "grade": "10",
+    "feePerPeriod": 350000,
+    "status": "PAID",
+    "attendanceLogs": [
+      {
+        "date": "2026-10-26",
+        "status": "ABSENT",
+        "note": "Đại số §1"
+      }
+    ],
+    "monthlyFee": 350000,
+    "month": "1",
+    "paymentHistory": []
   },
   {
     "id": 2,
-    "name": "Trần Thị B",
-    "grade": "10A2",
-    "feePerPeriod": 150000,
-    "attendedPeriods": 10,
-    "status": "UNPAID"
-  },
-  {
-    "id": 3,
-    "name": "Lê Hoàng C",
-    "grade": "10A1",
-    "feePerPeriod": 150000,
-    "attendedPeriods": 6,
-    "status": "UNPAID"
-  },
-  {
-    "id": 4,
-    "name": "Nguyễn Minh Anh",
-    "grade": "10A3",
-    "feePerPeriod": 150000,
-    "attendedPeriods": 8,
-    "status": "UNPAID"
+    "name": "An",
+    "grade": "10",
+    "feePerPeriod": 1200000,
+    "monthlyFee": 1200000,
+    "month": "10/2026",
+    "status": "PAID",
+    "attendanceLogs": [],
+    "paymentHistory": []
   }
 ]
