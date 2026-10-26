@@ -576,6 +576,19 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
 });
 
+const path = require('path');
+
+// 1. Phục vụ các file tĩnh trong thư mục client/dist đã được Vite build
+app.use(express.static(path.join(__dirname, 'client', 'dist')));
+
+// 2. Mọi đường dẫn không phải /api sẽ trả về file index.html của React
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ success: false, message: 'API Endpoint không tồn tại' });
+  }
+  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+});
+
 // KHỞI CHẠY SERVER
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`EduFee Server running on port ${PORT}`));
