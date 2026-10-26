@@ -21,9 +21,8 @@ app.use(express.json());
 // ==========================================
 // 2. CẤU HÌNH CLOUDINARY (LƯU TẢI FILE MÂY)
 // ==========================================
-// ⚠️ Thay 3 thông số bên dưới bằng Key lấy từ Dashboard Cloudinary của bạn:
 cloudinary.config({
-  cloud_name: ' cj8k6qmg',
+  cloud_name: 'cj8k6qmg', // ✅ Đã xóa khoảng trắng thừa ở đầu
   api_key: '312531395222632',
   api_secret: 'bYl03ernzb3Iqd_EAwNKQyKWMXY'
 });
@@ -31,8 +30,8 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'edufee_uploads', // Tên thư mục lưu trữ trên Cloudinary
-    resource_type: 'auto',   // Tự động nhận diện Ảnh, Video, PDF
+    folder: 'edufee_uploads',
+    resource_type: 'auto',
     public_id: (req, file) => {
       const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
       return uniqueSuffix;
@@ -50,7 +49,7 @@ const postsFilePath = path.join(__dirname, 'data', 'posts.json');
 const commentsFilePath = path.join(__dirname, 'data', 'comments.json');
 
 const JWT_SECRET = 'edufee_math_classic_secret_key_2026';
-const ADMIN_PASSWORD_HASH = bcrypt.hashSync('15112006', 10); // Mật khẩu Admin: 15112006
+const ADMIN_PASSWORD_HASH = bcrypt.hashSync('15112006', 10);
 
 const BANK_CONFIG = {
   bankId: "970418",
@@ -58,7 +57,7 @@ const BANK_CONFIG = {
   accountName: "THAI HUU PHUC",
 };
 
-// Dữ liệu học sinh mặc định nếu file chưa tồn tại
+// Dữ liệu học sinh mặc định
 const DEFAULT_STUDENTS = [
   {
     id: 1,
@@ -82,8 +81,6 @@ const DEFAULT_STUDENTS = [
 // ==========================================
 // 4. HÀM BỔ TRỢ ĐỌC / GHI DỮ LIỆU
 // ==========================================
-
-// Đọc dữ liệu Học sinh từ students.json
 const readStudentsData = () => {
   try {
     const dir = path.dirname(DATA_FILE);
@@ -100,7 +97,6 @@ const readStudentsData = () => {
   }
 };
 
-// Ghi dữ liệu Học sinh vào students.json
 const writeStudentsData = (data) => {
   try {
     const dir = path.dirname(DATA_FILE);
@@ -111,7 +107,6 @@ const writeStudentsData = (data) => {
   }
 };
 
-// Đọc dữ liệu EduFeed (Posts & Comments)
 const readFeedData = (filePath) => {
   try {
     const dir = path.dirname(filePath);
@@ -128,7 +123,6 @@ const readFeedData = (filePath) => {
   }
 };
 
-// Ghi dữ liệu EduFeed (Posts & Comments)
 const writeFeedData = (filePath, data) => {
   try {
     const dir = path.dirname(filePath);
@@ -139,7 +133,6 @@ const writeFeedData = (filePath, data) => {
   }
 };
 
-// Middleware xác thực Admin
 const authenticateAdmin = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -158,22 +151,17 @@ const lookupLimiter = rateLimit({
   message: { error: 'Thao tác quá nhanh. Vui lòng thử lại sau 1 phút.' }
 });
 
-// Mở quyền truy cập tĩnh thư mục uploads (Vẫn giữ dự phòng)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ==========================================
-// API UPLOAD FILE LÊN CLOUDINARY (Đã hỗ trợ Tiếng Việt & Cloud Storage)
+// API UPLOAD FILE LÊN CLOUDINARY
 // ==========================================
 app.post('/api/upload', authenticateAdmin, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'Chưa chọn file để tải lên.' });
     }
-
-    // Chuyển đổi tên file gốc từ latin1 sang UTF-8 để giữ nguyên tiếng Việt có dấu
     const originalFileName = Buffer.from(req.file.originalname, 'latin1').toString('utf8');
-
-    // req.file.path là URL mây trực tiếp do Cloudinary cấp
     const fileUrl = req.file.path; 
 
     res.json({
@@ -430,8 +418,6 @@ app.post('/api/students/rollover', authenticateAdmin, (req, res) => {
 // ==========================================
 // 14. EDUFEED API ENDPOINTS
 // ==========================================
-
-// GET /api/posts - Lấy danh sách bài viết
 app.get('/api/posts', (req, res) => {
   try {
     const { grade } = req.query;
@@ -448,7 +434,6 @@ app.get('/api/posts', (req, res) => {
   }
 });
 
-// POST /api/posts - Đăng bài viết mới
 app.post('/api/posts', authenticateAdmin, (req, res) => {
   try {
     const { title, content, grade, attachments } = req.body;
@@ -477,7 +462,6 @@ app.post('/api/posts', authenticateAdmin, (req, res) => {
   }
 });
 
-// DELETE /api/posts/:id - Xóa bài viết
 app.delete('/api/posts/:id', authenticateAdmin, (req, res) => {
   try {
     const { id } = req.params;
@@ -496,7 +480,6 @@ app.delete('/api/posts/:id', authenticateAdmin, (req, res) => {
   }
 });
 
-// POST /api/posts/:id/like - Thả tim bài viết
 app.post('/api/posts/:id/like', (req, res) => {
   try {
     const { id } = req.params;
@@ -516,7 +499,6 @@ app.post('/api/posts/:id/like', (req, res) => {
   }
 });
 
-// GET /api/posts/:id/comments - Lấy danh sách bình luận
 app.get('/api/posts/:id/comments', (req, res) => {
   try {
     const { id } = req.params;
@@ -529,7 +511,6 @@ app.get('/api/posts/:id/comments', (req, res) => {
   }
 });
 
-// POST /api/posts/:id/comments - Gửi bình luận mới
 app.post('/api/posts/:id/comments', (req, res) => {
   try {
     const { id } = req.params;
@@ -561,27 +542,14 @@ app.post('/api/posts/:id/comments', (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi gửi bình luận.' });
   }
 });
+
 // ==========================================
-// CẤU HÌNH PHỤC VỤ FRONTEND REACT (DIST)
+// 15. CẤU HÌNH PHỤC VỤ FRONTEND REACT (DIST)
 // ==========================================
-// 1. Trỏ thư mục tĩnh đến client/dist
+// Trỏ thư mục tĩnh đến client/dist
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
-// 2. Với mọi route không phải API, trả về index.html của React
-app.get('*', (req, res) => {
-  // Nếu request bắt đầu bằng /api mà không tìm thấy thì trả về 404
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'API Endpoint không tồn tại' });
-  }
-  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
-});
-
-const path = require('path');
-
-// 1. Phục vụ các file tĩnh trong thư mục client/dist đã được Vite build
-app.use(express.static(path.join(__dirname, 'client', 'dist')));
-
-// 2. Mọi đường dẫn không phải /api sẽ trả về file index.html của React
+// Với mọi route không phải /api, trả về index.html của React
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ success: false, message: 'API Endpoint không tồn tại' });
