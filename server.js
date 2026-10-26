@@ -563,5 +563,6 @@ app.post('/api/posts/:id/comments', (req, res) => {
 });
 
 // KHỞI CHẠY SERVER
-const PORT = 3000;
-app.listen(PORT, () => console.log(`EduFee Server running on http://localhost:${PORT}`));
+// DÙNG CỔNG DỘNG CỦA RENDER CẤP HOẶC CỔNG 3000 KHI CHẠY LOCAL
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`EduFee Server running on port ${PORT}`));
