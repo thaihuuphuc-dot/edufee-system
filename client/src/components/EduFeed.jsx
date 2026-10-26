@@ -9,7 +9,10 @@ const EduFeed = () => {
     return JSON.parse(localStorage.getItem('edufeed_liked_posts') || '[]');
   });
 
-  const API_BASE = '/api';
+  // Tự động nhận diện Domain Render khi lên web hoặc dùng Proxy /api khi chạy Local
+  const API_BASE = window.location.hostname === 'localhost' 
+    ? '/api' 
+    : 'https://edufee-system.onrender.com/api'; // ⚠️ Thay bằng URL Web Service Render của bạn
 
   // Fetch posts theo grade
   const fetchPosts = async () => {
