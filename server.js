@@ -561,8 +561,21 @@ app.post('/api/posts/:id/comments', (req, res) => {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi gửi bình luận.' });
   }
 });
+// ==========================================
+// CẤU HÌNH PHỤC VỤ FRONTEND REACT (DIST)
+// ==========================================
+// 1. Trỏ thư mục tĩnh đến client/dist
+app.use(express.static(path.join(__dirname, 'client', 'dist')));
+
+// 2. Với mọi route không phải API, trả về index.html của React
+app.get('*', (req, res) => {
+  // Nếu request bắt đầu bằng /api mà không tìm thấy thì trả về 404
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API Endpoint không tồn tại' });
+  }
+  res.sendFile(path.join(__dirname, 'client', 'dist', 'index.html'));
+});
 
 // KHỞI CHẠY SERVER
-// DÙNG CỔNG DỘNG CỦA RENDER CẤP HOẶC CỔNG 3000 KHI CHẠY LOCAL
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`EduFee Server running on port ${PORT}`));
