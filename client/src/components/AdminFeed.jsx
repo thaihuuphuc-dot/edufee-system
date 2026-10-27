@@ -11,6 +11,7 @@ const AdminFeed = ({ adminToken }) => {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
 
+  // Đường dẫn tương đối '/api' chuẩn cho cả Dev Proxy lẫn Express Production
   const API_BASE = '/api';
 
   const fetchPosts = async () => {
@@ -101,7 +102,7 @@ const AdminFeed = ({ adminToken }) => {
       }
     } catch (err) {
       console.error('Lỗi Submit Post:', err);
-      setMessage({ type: 'error', text: 'Không thể kết nối đến Backend (Cổng 3000). Hãy kiểm tra Terminal node server.js!' });
+      setMessage({ type: 'error', text: 'Không thể kết nối đến Backend. Hãy kiểm tra terminal server.js!' });
     } finally {
       setSubmitting(false);
     }
@@ -125,37 +126,42 @@ const AdminFeed = ({ adminToken }) => {
   };
 
   return (
-    <div className="admin-feed-container space-y-8 max-w-6xl mx-auto p-4">
-      <h2 className="text-2xl font-bold border-b border-white/10 pb-3">✍️ Quản Lý Bảng Tin & Bài Giảng Math Feed</h2>
+  /* Khung chứa ngoài cùng cho trang Admin */
+  <div className="admin-feed-container space-y-8 max-w-6xl mx-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-950/80 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-colors duration-200">
+    <h2 className="text-2xl font-bold border-b border-slate-200 dark:border-slate-800 pb-3 text-slate-900 dark:text-slate-100">
+      ✍️ Quản Lý Bảng Tin & Bài Giảng Math Feed
+    </h2>
+
+    {/* Nội dung Form & Preview giữ nguyên bg-white dark:bg-slate-900 */}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Form soạn bài */}
-        <form onSubmit={handleSubmit} className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
-          <h3 className="text-lg font-semibold text-blue-400">Soạn Bài Giảng Mới</h3>
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
+          <h3 className="text-lg font-bold text-blue-600 dark:text-blue-400">Soạn Bài Giảng Mới</h3>
 
           {message.text && (
-            <div className={`p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'}`}>
+            <div className={`p-3 rounded-xl text-xs font-semibold ${message.type === 'success' ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800' : 'bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300 border border-rose-200 dark:border-rose-800'}`}>
               {message.text}
             </div>
           )}
 
           <div className="space-y-1">
-            <label className="text-xs text-gray-400 font-medium">Tiêu đề bài viết</label>
+            <label className="text-xs text-slate-600 dark:text-slate-400 font-semibold">Tiêu đề bài viết</label>
             <input
               type="text"
               placeholder="Ví dụ: Bài tập Đạo hàm & File đề thi..."
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 text-sm focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 dark:placeholder-slate-500"
             />
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-gray-400 font-medium">Khối Lớp</label>
+            <label className="text-xs text-slate-600 dark:text-slate-400 font-semibold">Khối Lớp</label>
             <select
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 text-sm focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
             >
               <option value="6">Khối 6</option>
               <option value="7">Khối 7</option>
@@ -166,35 +172,35 @@ const AdminFeed = ({ adminToken }) => {
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-gray-400 font-medium">Nội dung (Công thức KaTeX)</label>
+            <label className="text-xs text-slate-600 dark:text-slate-400 font-semibold">Nội dung (Công thức KaTeX)</label>
             <textarea
               rows={6}
               placeholder="Nhập nội dung... Dùng $f(x) = x^2$ hoặc $$ \int_0^1 x dx $$"
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 text-sm font-mono focus:outline-none"
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 dark:placeholder-slate-500"
             />
           </div>
 
           {/* Ô Chọn File đính kèm */}
-          <div className="space-y-2 border-t border-white/10 pt-3">
-            <label className="text-xs text-gray-400 font-medium block">📁 Đính kèm File (PDF, Ảnh, Video)</label>
+          <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-3">
+            <label className="text-xs text-slate-600 dark:text-slate-400 font-semibold block">📁 Đính kèm File (PDF, Ảnh, Video)</label>
             <input
               type="file"
               accept="image/*,video/*,application/pdf"
               onChange={handleFileUpload}
               disabled={uploading}
-              className="text-xs text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-500 cursor-pointer"
+              className="text-xs text-slate-500 dark:text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
             />
-            {uploading && <span className="text-xs text-amber-400 block">Đang tải file lên máy chủ...</span>}
+            {uploading && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium block">⏳ Đang tải file lên máy chủ...</span>}
 
             {/* Danh sách file đã tải lên chuẩn bị đăng */}
             {attachments.length > 0 && (
               <div className="space-y-1 mt-2">
                 {attachments.map((file, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-xs bg-gray-800 p-2 rounded border border-gray-700">
-                    <span className="truncate max-w-[250px] text-blue-300">📎 {file.name}</span>
-                    <button type="button" onClick={() => handleRemoveAttachment(idx)} className="text-rose-400 hover:text-rose-300 font-bold ml-2">
+                  <div key={idx} className="flex justify-between items-center text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <span className="truncate max-w-[250px] text-blue-700 dark:text-blue-300 font-medium">📎 {file.name}</span>
+                    <button type="button" onClick={() => handleRemoveAttachment(idx)} className="text-rose-600 dark:text-rose-400 hover:text-rose-800 font-bold ml-2 px-1">
                       ✕
                     </button>
                   </div>
@@ -206,54 +212,56 @@ const AdminFeed = ({ adminToken }) => {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg transition disabled:opacity-50"
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition shadow-sm disabled:opacity-50 cursor-pointer"
           >
             {submitting ? 'Đang xuất bản...' : '🚀 Xuất Bản Bài Viết'}
           </button>
         </form>
 
-        {/* Cột Xem trước Live Preview nâng cấp */}
-        <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3 flex flex-col">
-          <h3 className="text-lg font-semibold text-emerald-400 border-b border-white/10 pb-2">👁️ Live KaTeX & Media Preview</h3>
-          <div className="flex-1 bg-gray-900/60 rounded-lg p-4 border border-gray-800 overflow-y-auto max-h-[550px] space-y-3">
-            <h4 className="text-lg font-bold text-white">{title || 'Chưa có tiêu đề'}</h4>
-            <div className="text-gray-300 text-sm">
+        {/* Cột Xem trước Live Preview */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 flex flex-col shadow-sm">
+          <h3 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 border-b border-slate-100 dark:border-slate-800 pb-2">
+            👁️ Live KaTeX & Media Preview
+          </h3>
+          <div className="flex-1 bg-slate-50 dark:bg-slate-950/60 rounded-xl p-4 border border-slate-200 dark:border-slate-800 overflow-y-auto max-h-[550px] space-y-3">
+            <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title || 'Chưa có tiêu đề'}</h4>
+            <div className="text-slate-800 dark:text-slate-200 text-sm leading-relaxed">
               <MathText text={content || 'Chưa có nội dung...'} />
             </div>
 
-            {/* Preview Media đính kèm đầy đủ */}
+            {/* Preview Media đính kèm */}
             {attachments.length > 0 && (
-              <div className="space-y-3 pt-3 border-t border-white/10">
-                <span className="text-xs text-amber-400 font-semibold block">📁 Xem trước phương tiện đính kèm:</span>
+              <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-bold block">📁 Xem trước phương tiện đính kèm:</span>
                 {attachments.map((att, i) => (
-                  <div key={i} className="bg-gray-800 p-3 rounded-xl border border-gray-700 space-y-2">
+                  <div key={i} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
                     
-                    {/* Xem trước Ảnh toàn bộ */}
+                    {/* Xem trước Ảnh */}
                     {att.type.startsWith('image/') && (
                       <div className="space-y-1">
-                        <img src={att.url} alt="" className="w-full max-h-[350px] object-contain rounded-lg bg-black/40 border border-white/5" />
-                        <span className="text-[11px] text-gray-400 block truncate">🖼️ {att.name}</span>
+                        <img src={att.url} alt="" className="w-full max-h-[350px] object-contain rounded-lg bg-slate-100 dark:bg-black/50 border border-slate-200 dark:border-slate-800" />
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate font-medium">🖼️ {att.name}</span>
                       </div>
                     )}
 
-                    {/* Xem trước Video đầy đủ */}
+                    {/* Xem trước Video */}
                     {att.type.startsWith('video/') && (
                       <div className="space-y-1">
-                        <video src={att.url} controls className="w-full max-h-[350px] rounded-lg bg-black" />
-                        <span className="text-[11px] text-gray-400 block truncate">🎬 {att.name}</span>
+                        <video src={att.url} controls className="w-full max-h-[350px] rounded-lg bg-black shadow-sm" />
+                        <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate font-medium">🎬 {att.name}</span>
                       </div>
                     )}
 
-                    {/* Khung nhúng xem trước PDF trực tiếp */}
+                    {/* Khung nhúng xem trước PDF */}
                     {att.type === 'application/pdf' && (
                       <div className="space-y-2">
-                        <div className="flex justify-between items-center bg-blue-950/50 p-2 rounded-lg border border-blue-500/30">
-                          <span className="text-xs font-bold text-blue-300 truncate">📄 {att.name}</span>
-                          <a href={att.url} target="_blank" rel="noreferrer" className="text-[11px] text-blue-400 underline">
+                        <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-950/40 p-2 rounded-lg border border-blue-200 dark:border-blue-900/40">
+                          <span className="text-xs font-bold text-blue-800 dark:text-blue-300 truncate">📄 {att.name}</span>
+                          <a href={att.url} target="_blank" rel="noreferrer" className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold underline">
                             Mở tab mới ↗
                           </a>
                         </div>
-                        <div className="w-full h-80 bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                        <div className="w-full h-80 bg-slate-200 dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-800">
                           <iframe src={`${att.url}#toolbar=1`} title="PDF Preview" className="w-full h-full" />
                         </div>
                       </div>
@@ -268,21 +276,30 @@ const AdminFeed = ({ adminToken }) => {
       </div>
 
       {/* Danh sách bài viết đã xuất bản */}
-      <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-200">📋 Các bài viết đã xuất bản</h3>
-        <div className="space-y-3">
-          {posts.map((post) => (
-            <div key={post.id} className="flex justify-between items-center bg-gray-800/50 p-3 rounded-lg border border-gray-700/50 text-sm">
-              <div>
-                <span className="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded font-mono mr-2">Lớp {post.grade}</span>
-                <span className="font-medium text-white">{post.title}</span>
-                {post.attachments?.length > 0 && <span className="text-xs text-amber-400 ml-2">📎 ({post.attachments.length} file)</span>}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">📋 Các bài viết đã xuất bản</h3>
+        <div className="space-y-2">
+          {posts.length === 0 ? (
+            <div className="text-xs text-slate-400 italic">Chưa có bài viết nào được xuất bản.</div>
+          ) : (
+            posts.map((post) => (
+              <div key={post.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 text-sm">
+                <div>
+                  <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-semibold mr-2 border border-blue-200 dark:border-blue-800">
+                    Lớp {post.grade}
+                  </span>
+                  <span className="font-semibold text-slate-800 dark:text-slate-100">{post.title}</span>
+                  {post.attachments?.length > 0 && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-2">📎 ({post.attachments.length} file)</span>}
+                </div>
+                <button 
+                  onClick={() => handleDeletePost(post.id)} 
+                  className="px-3 py-1 bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/60 rounded-lg text-xs font-semibold transition border border-rose-200 dark:border-rose-800/60 cursor-pointer"
+                >
+                  🗑️ Xóa
+                </button>
               </div>
-              <button onClick={() => handleDeletePost(post.id)} className="px-2.5 py-1 bg-rose-500/20 text-rose-300 rounded text-xs hover:bg-rose-500/30 transition">
-                🗑️ Xóa
-              </button>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

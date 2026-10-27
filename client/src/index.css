@@ -10,3 +10,21 @@
     font-family: 'Cormorant Garamond', serif;
   }
 }
+/* Tự động ăn màu chữ theo theme cho KaTeX */
+.katex {
+  color: inherit !important;
+}
+
+/* Tạo nền nhẹ cho khối công thức Toán hiển thị dạng block */
+.katex-display {
+  background-color: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 1rem 0 !important;
+}
+
+/* Đổi màu nền khối KaTeX block khi ở Dark Mode */
+.dark .katex-display {
+  background-color: rgba(255, 255, 255, 0.06);
+}
