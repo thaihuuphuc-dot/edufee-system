@@ -6,8 +6,41 @@ const rateLimit = require('express-rate-limit');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const mongoose = require('mongoose');
 
-// Thêm thư viện Cloudinary & Storage
+// ==========================================
+// KẾT NỐI MONGODB ATLAS CLOUD
+// ==========================================
+// Chuỗi kết nối dạng Standard trực tiếp (Không phụ thuộc DNS SRV của nhà mạng)
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb://HuuPhuc:Huuphuc1511@cluster0-shard-00-00.kf1zbxe.mongodb.net:27017,cluster0-shard-00-01.kf1zbxe.mongodb.net:27017,cluster0-shard-00-02.kf1zbxe.mongodb.net:27017/edufee_db?ssl=true&replicaSet=atlas-13o6g0-shard-0&authSource=admin&retryWrites=true&w=majority";
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('✅ Đã kết nối thành công với MongoDB Atlas Cloud!'))
+  .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
+
+// 1. Schema Bài Viết (Posts)
+const postSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  title: { type: String, required: true },
+  grade: { type: String, required: true },
+  content: { type: String, required: true },
+  attachments: { type: Array, default: [] },
+  likes: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
+});
+const Post = mongoose.model('Post', postSchema);
+
+// 2. Schema Bình Luận (Comments)
+const commentSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  postId: { type: String, required: true },
+  author: { type: String, default: 'Học sinh' },
+  role: { type: String, default: 'student' },
+  text: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now }
+});
+const Comment = mongoose.model('Comment', commentSchema);
+
+// Thư viện Cloudinary & Storage
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
@@ -22,7 +55,7 @@ app.use(express.json());
 // 2. CẤU HÌNH CLOUDINARY (LƯU TẢI FILE MÂY)
 // ==========================================
 cloudinary.config({
-  cloud_name: 'cj8k6qmg', // ✅ Đã xóa khoảng trắng thừa ở đầu
+  cloud_name: 'cj8k6qmg',
   api_key: '312531395222632',
   api_secret: 'bYl03ernzb3Iqd_EAwNKQyKWMXY'
 });
@@ -45,8 +78,6 @@ const upload = multer({ storage });
 // 3. CẤU HÌNH ĐƯỜNG DẪN DỮ LIỆU JSON & AUTH
 // ==========================================
 const DATA_FILE = path.join(__dirname, 'data', 'students.json');
-const postsFilePath = path.join(__dirname, 'data', 'posts.json');
-const commentsFilePath = path.join(__dirname, 'data', 'comments.json');
 
 const JWT_SECRET = 'edufee_math_classic_secret_key_2026';
 const ADMIN_PASSWORD_HASH = bcrypt.hashSync('15112006', 10);
@@ -61,8 +92,8 @@ const BANK_CONFIG = {
 const DEFAULT_STUDENTS = [
   {
     id: 1,
-    name: "An Khang",
-    grade: "10",
+    name: "Khang",
+    grade: "11",
     feePerPeriod: 350000,
     monthlyFee: 350000,
     month: "10/2026",
@@ -79,7 +110,7 @@ const DEFAULT_STUDENTS = [
 ];
 
 // ==========================================
-// 4. HÀM BỔ TRỢ ĐỌC / GHI DỮ LIỆU
+// 4. HÀM BỔ TRỢ ĐỌC / GHI DỮ LIỆU HỌC SINH
 // ==========================================
 const readStudentsData = () => {
   try {
@@ -104,32 +135,6 @@ const writeStudentsData = (data) => {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
   } catch (err) {
     console.error('Lỗi ghi file students.json:', err);
-  }
-};
-
-const readFeedData = (filePath) => {
-  try {
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, JSON.stringify([], null, 2), 'utf-8');
-      return [];
-    }
-    const content = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(content || '[]');
-  } catch (err) {
-    console.error(`Lỗi đọc file ${filePath}:`, err);
-    return [];
-  }
-};
-
-const writeFeedData = (filePath, data) => {
-  try {
-    const dir = path.dirname(filePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error(`Lỗi ghi file ${filePath}:`, err);
   }
 };
 
@@ -391,7 +396,7 @@ app.post('/api/students/rollover', authenticateAdmin, (req, res) => {
         month: student.month || 'Không xác định',
         monthlyFee: student.monthlyFee,
         status: student.status,
-        archivedAt: new Date().toISOString()
+archivedAt: new Date().toISOString()
       });
 
       return {
@@ -416,25 +421,24 @@ app.post('/api/students/rollover', authenticateAdmin, (req, res) => {
 });
 
 // ==========================================
-// 14. EDUFEED API ENDPOINTS
+// 14. EDUFEED API ENDPOINTS (DÙNG MONGODB ATLAS)
 // ==========================================
-app.get('/api/posts', (req, res) => {
+
+// Lấy danh sách bài viết từ MongoDB
+app.get('/api/posts', async (req, res) => {
   try {
     const { grade } = req.query;
-    let posts = readFeedData(postsFilePath);
-
-    if (grade && grade !== 'ALL') {
-      posts = posts.filter(p => String(p.grade) === String(grade));
-    }
-
-    posts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const query = (grade && grade !== 'ALL') ? { grade: String(grade) } : {};
+    const posts = await Post.find(query).sort({ createdAt: -1 });
     res.json({ success: true, data: posts });
   } catch (error) {
+    console.error('Lỗi lấy danh sách bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy danh sách bài viết.' });
   }
 });
 
-app.post('/api/posts', authenticateAdmin, (req, res) => {
+// Đăng bài viết mới vào MongoDB
+app.post('/api/posts', authenticateAdmin, async (req, res) => {
   try {
     const { title, content, grade, attachments } = req.body;
 
@@ -442,76 +446,78 @@ app.post('/api/posts', authenticateAdmin, (req, res) => {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ tiêu đề, nội dung và khối lớp.' });
     }
 
-    const posts = readFeedData(postsFilePath);
-    const newPost = {
+    const newPost = new Post({
       id: Date.now().toString(),
       title: title.trim(),
       content: content.trim(),
       grade: String(grade),
       attachments: attachments || [],
-      createdAt: new Date().toISOString(),
-      likes: 0
-    };
+      likes: 0,
+      createdAt: new Date()
+    });
 
-    posts.unshift(newPost);
-    writeFeedData(postsFilePath, posts);
-
+    await newPost.save();
     res.status(201).json({ success: true, data: newPost, message: 'Đăng bài viết thành công!' });
   } catch (error) {
+    console.error('Lỗi đăng bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi đăng bài viết.' });
   }
 });
 
-app.delete('/api/posts/:id', authenticateAdmin, (req, res) => {
+// Xóa bài viết và toàn bộ comment thuộc bài viết đó trong MongoDB
+app.delete('/api/posts/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    let posts = readFeedData(postsFilePath);
-    const initialLength = posts.length;
-    posts = posts.filter(p => String(p.id) !== String(id));
+    const deletedPost = await Post.findOneAndDelete({ id: String(id) });
 
-    if (posts.length === initialLength) {
+    if (!deletedPost) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
     }
 
-    writeFeedData(postsFilePath, posts);
-    res.json({ success: true, message: 'Đã xóa bài viết thành công.' });
+    // Xóa luôn toàn bộ comment của bài viết này
+    await Comment.deleteMany({ postId: String(id) });
+
+    res.json({ success: true, message: 'Đã xóa bài viết và các bình luận liên quan thành công.' });
   } catch (error) {
+    console.error('Lỗi xóa bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi xóa bài viết.' });
   }
 });
 
-app.post('/api/posts/:id/like', (req, res) => {
+// Thả tim bài viết trong MongoDB
+app.post('/api/posts/:id/like', async (req, res) => {
   try {
     const { id } = req.params;
-    const posts = readFeedData(postsFilePath);
-    const postIndex = posts.findIndex(p => String(p.id) === String(id));
+    const post = await Post.findOne({ id: String(id) });
 
-    if (postIndex === -1) {
+    if (!post) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
     }
 
-    posts[postIndex].likes = (posts[postIndex].likes || 0) + 1;
-    writeFeedData(postsFilePath, posts);
+    post.likes = (post.likes || 0) + 1;
+    await post.save();
 
-    res.json({ success: true, data: posts[postIndex] });
+    res.json({ success: true, data: post });
   } catch (error) {
+    console.error('Lỗi thả tim:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi thả tim.' });
   }
 });
 
-app.get('/api/posts/:id/comments', (req, res) => {
+// Lấy danh sách bình luận của 1 bài viết từ MongoDB
+app.get('/api/posts/:id/comments', async (req, res) => {
   try {
     const { id } = req.params;
-    const comments = readFeedData(commentsFilePath);
-    const postComments = comments.filter(c => String(c.postId) === String(id));
-
-    res.json({ success: true, data: postComments });
+    const comments = await Comment.find({ postId: String(id) }).sort({ createdAt: 1 });
+    res.json({ success: true, data: comments });
   } catch (error) {
+    console.error('Lỗi lấy bình luận:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy bình luận.' });
   }
 });
 
-app.post('/api/posts/:id/comments', (req, res) => {
+// Gửi bình luận mới vào MongoDB
+app.post('/api/posts/:id/comments', async (req, res) => {
   try {
     const { id } = req.params;
     const { author, text, isAdmin } = req.body;
@@ -524,21 +530,19 @@ app.post('/api/posts/:id/comments', (req, res) => {
       return res.status(400).json({ success: false, message: 'Bình luận vượt quá giới hạn 500 ký tự.' });
     }
 
-    const comments = readFeedData(commentsFilePath);
-    const newComment = {
+    const newComment = new Comment({
       id: Date.now().toString(),
       postId: String(id),
       author: author && author.trim() !== '' ? author.trim() : 'Học sinh',
       role: isAdmin ? 'teacher' : 'student',
       text: text.trim(),
-      createdAt: new Date().toISOString()
-    };
+      createdAt: new Date()
+    });
 
-    comments.push(newComment);
-    writeFeedData(commentsFilePath, comments);
-
+    await newComment.save();
     res.status(201).json({ success: true, data: newComment });
   } catch (error) {
+    console.error('Lỗi gửi bình luận:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi gửi bình luận.' });
   }
 });
@@ -546,10 +550,8 @@ app.post('/api/posts/:id/comments', (req, res) => {
 // ==========================================
 // 15. CẤU HÌNH PHỤC VỤ FRONTEND REACT (DIST)
 // ==========================================
-// Trỏ thư mục tĩnh đến client/dist
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
-// Với mọi route không phải /api, trả về index.html của React
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api')) {
     return res.status(404).json({ success: false, message: 'API Endpoint không tồn tại' });
