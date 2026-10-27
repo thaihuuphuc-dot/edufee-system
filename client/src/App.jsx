@@ -74,7 +74,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  const API_BASE = 'http://localhost:3000/api';
+  const API_BASE = '/api';
 
   const isDark = theme === 'dark';
   const bgColor = isDark ? 'bg-[#0B1B33] text-[#F1EBDD]' : 'bg-[#F6F0E1] text-[#1B2A41]';
