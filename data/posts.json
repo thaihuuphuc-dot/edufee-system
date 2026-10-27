@@ -1,17 +1,1 @@
-[
-  {
-    "id": "1793030921421",
-    "title": "Toán",
-    "content": "aloaloalo",
-    "grade": "10",
-    "attachments": [
-      {
-        "url": "http://localhost:3000/uploads/1793030919462-629177743.pdf",
-        "name": "Phieu_Thu_ThÃ¡i_Há»¯u_PhÃºc.pdf",
-        "type": "application/pdf"
-      }
-    ],
-    "createdAt": "2026-10-26T16:08:41.421Z",
-    "likes": 1
-  }
-]
+[]
