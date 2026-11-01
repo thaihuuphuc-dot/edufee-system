@@ -12,7 +12,8 @@ import {
   Users, Wallet, Clock, Search, UserPlus, FileText, QrCode, TrendingUp, X, Filter,
   Eye, BarChart3, Download, CheckCircle2, Trash2, Pencil,
   CheckSquare, Square, FileSpreadsheet, PieChart as PieIcon,
-  Sun, Moon, Shield, LogOut, Calendar, XCircle, Check, Save, MessageSquare
+  Sun, Moon, Shield, LogOut, Calendar, XCircle, Check, Save, MessageSquare,
+  User, GraduationCap, Sparkles, BookOpen, CreditCard, HelpCircle
 } from 'lucide-react';
 
 function MathFormula({ math, block = false }) {
@@ -25,8 +26,38 @@ function MathFormula({ math, block = false }) {
   return <span ref={containerRef} />;
 }
 
+// Danh sách các công thức toán phân bổ rải rác kèm thời gian trôi vô tận
+const FLOATING_MATH_ITEMS = [
+  { symbol: '∫ f(x)dx', left: '3%', duration: '18s', delay: '0s', size: '1.2rem' },
+  { symbol: 'e^{iπ} + 1 = 0', left: '15%', duration: '22s', delay: '-5s', size: '1.4rem' },
+  { symbol: '∑_{k=1}^n k^2', left: '28%', duration: '16s', delay: '-10s', size: '1.1rem' },
+  { symbol: 'lim_{x→0} \\frac{\\sin x}{x} = 1', left: '42%', duration: '20s', delay: '-2s', size: '1.3rem' },
+  { symbol: '∇ × E = -\\frac{\\partial B}{\\partial t}', left: '55%', duration: '25s', delay: '-12s', size: '1.2rem' },
+  { symbol: 'A = \\pi r^2', left: '68%', duration: '17s', delay: '-7s', size: '1.5rem' },
+  { symbol: '\\sqrt{a^2 + b^2}', left: '82%', duration: '21s', delay: '-14s', size: '1.2rem' },
+  { symbol: '\\oint_C B \\cdot dl', left: '92%', duration: '24s', delay: '-3s', size: '1.1rem' },
+  { symbol: 'f\'(x) = \\lim_{\\Delta x \\to 0}', left: '22%', duration: '19s', delay: '-8s', size: '1.3rem' },
+  { symbol: '\\sum_{n=0}^{\\infty} \\frac{x^n}{n!}', left: '74%', duration: '23s', delay: '-15s', size: '1.2rem' },
+];
+
 export default function App() {
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'light';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
   const [view, setView] = useState('portal'); // 'portal' | 'login' | 'admin'
   const [publicTab, setPublicTab] = useState('lookup'); // 'lookup' | 'edufeed'
   const [adminTab, setAdminTab] = useState('students'); // 'students' | 'attendance' | 'feed'
@@ -78,11 +109,11 @@ export default function App() {
 
   const isDark = theme === 'dark';
   const bgColor = isDark ? 'bg-[#0B1B33] text-[#F1EBDD]' : 'bg-[#F6F0E1] text-[#1B2A41]';
-  const cardBg = isDark ? 'bg-[#12284A] border-[#1E3A66]' : 'bg-[#FBF7EC] border-[#E2D7C3]';
+  const cardBg = isDark ? 'bg-[#12284A]/75 border-[#1E3A66]' : 'bg-[#FBF7EC]/85 border-[#E2D7C3]';
   const accentColor = isDark ? 'text-[#C9A24B]' : 'text-[#9A7424]';
   const buttonPrimary = isDark 
-    ? 'bg-[#C9A24B] text-[#0B1B33] hover:bg-[#d8b056]' 
-    : 'bg-[#9A7424] text-[#F6F0E1] hover:bg-[#83621d]';
+    ? 'bg-gradient-to-r from-[#C9A24B] to-[#D8B056] text-[#0B1B33] hover:shadow-[0_0_20px_rgba(201,162,75,0.4)] hover:brightness-105' 
+    : 'bg-gradient-to-r from-[#9A7424] to-[#B3882D] text-[#F6F0E1] hover:shadow-[0_0_20px_rgba(154,116,36,0.3)] hover:brightness-105';
 
   const fetchStudents = async () => {
     if (!token) return;
@@ -106,7 +137,6 @@ export default function App() {
     if (token && view === 'admin') fetchStudents();
   }, [token, view]);
 
-  // Tự động gán lớp hợp lệ nếu attGrade chưa có trong danh sách
   useEffect(() => {
     if (students.length > 0) {
       const existingGrades = Array.from(new Set(students.map(s => String(s.grade))));
@@ -116,7 +146,6 @@ export default function App() {
     }
   }, [students]);
 
-  // Cập nhật trạng thái điểm danh trong Tab Attendance khi đổi lớp/ngày
   useEffect(() => {
     const classStudents = students.filter(s => String(s.grade) === String(attGrade));
     const initialMap = {};
@@ -248,7 +277,6 @@ export default function App() {
     } finally { setLoading(false); }
   };
 
-  // Xuất Báo cáo Học phí & Điểm danh Tổng hợp theo Tháng ra CSV/Excel chuẩn UTF-8 (5 Cột)
   const handleExportMonthlyCSV = () => {
     const targetStudents = selectedGradeFilter === 'ALL' 
       ? students 
@@ -426,21 +454,78 @@ export default function App() {
   const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
 
   return (
-    <div className={`min-h-screen ${bgColor} transition-colors duration-300 flex flex-col font-sans`}>
+    <div className={`min-h-screen ${bgColor} transition-colors duration-300 flex flex-col font-sans relative overflow-x-hidden`}>
+      
+      {/* KHAI BÁO ANIMATION VÔ TẬN VỚI THUỘC TÍNH INFINITE */}
+      <style>{`
+        @keyframes floatMathContinuous {
+          0% {
+            transform: translateY(105vh) rotate(0deg);
+            opacity: 0;
+          }
+          10% {
+            opacity: 0.25;
+          }
+          90% {
+            opacity: 0.25;
+          }
+          100% {
+            transform: translateY(-15vh) rotate(20deg);
+            opacity: 0;
+          }
+        }
+        .animate-math-floating {
+          position: fixed;
+          top: 0;
+          pointer-events: none;
+          user-select: none;
+          z-index: 0;
+          white-space: nowrap;
+          will-change: transform, opacity;
+          animation-name: floatMathContinuous;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
+      `}</style>
+
+      {/* LỚP NỀN CHỨA CÁC CÔNG THỨC TRÔI LIÊN TỤC KHẮP MÀN HÌNH */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        {FLOATING_MATH_ITEMS.map((item, index) => (
+          <div
+            key={index}
+            className={`animate-math-floating ${isDark ? 'text-[#C9A24B]' : 'text-[#9A7424]'}`}
+            style={{
+              left: item.left,
+              animationDuration: item.duration,
+              animationDelay: item.delay,
+              fontSize: item.size
+            }}
+          >
+            <MathFormula math={item.symbol} />
+          </div>
+        ))}
+
+        {/* QUẦNG SÁNG NHẸ TẠO CHIỀU SÂU NỀN */}
+        <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] bg-amber-500/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-1/3 right-1/4 w-[500px] h-[500px] bg-blue-500/5 rounded-full blur-[150px]" />
+      </div>
+
       {/* HEADER BAR */}
-      <header className={`border-b ${isDark ? 'border-[#1E3A66]' : 'border-[#E2D7C3]'} px-6 py-4 flex items-center justify-between`}>
-        <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setView('portal')}>
-          <div className={`w-8 h-8 rounded-full border ${isDark ? 'border-[#C9A24B]' : 'border-[#9A7424]'} flex items-center justify-center font-serif text-lg font-bold`}>
+      <header className={`relative z-10 border-b ${isDark ? 'border-[#1E3A66] bg-[#0B1B33]/80' : 'border-[#E2D7C3] bg-[#F6F0E1]/80'} backdrop-blur-md px-6 py-4 flex items-center justify-between`}>
+        <div className="flex items-center space-x-3 cursor-pointer group" onClick={() => setView('portal')}>
+          <div className={`w-9 h-9 rounded-xl border ${isDark ? 'border-[#C9A24B] bg-[#12284A]' : 'border-[#9A7424] bg-[#FBF7EC]'} flex items-center justify-center font-serif text-xl font-bold shadow-md group-hover:scale-105 transition-transform`}>
             ∫
           </div>
           <span className="font-serif text-2xl font-bold tracking-wide">EduFee</span>
-          <span className="text-xs px-2 py-0.5 rounded border border-current opacity-70">Math Classic</span>
+          <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border ${isDark ? 'border-[#C9A24B]/40 text-[#C9A24B] bg-[#C9A24B]/10' : 'border-[#9A7424]/40 text-[#9A7424] bg-[#9A7424]/10'}`}>
+            Math Classic
+          </span>
         </div>
 
         <div className="flex items-center space-x-4">
           <button 
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className={`p-2 rounded-lg border ${isDark ? 'border-[#1E3A66] hover:bg-[#12284A]' : 'border-[#E2D7C3] hover:bg-[#FBF7EC]'} transition`}
+            className={`p-2 rounded-xl border ${isDark ? 'border-[#1E3A66] hover:bg-[#12284A]' : 'border-[#E2D7C3] hover:bg-[#FBF7EC]'} transition shadow-sm`}
             title="Đổi giao diện Bảng đen / Giấy da"
           >
             {isDark ? <Sun className="w-5 h-5 text-[#C9A24B]" /> : <Moon className="w-5 h-5 text-[#9A7424]" />}
@@ -450,20 +535,20 @@ export default function App() {
             <div className="flex items-center space-x-3">
               <button 
                 onClick={() => setView(view === 'admin' ? 'portal' : 'admin')}
-                className={`text-sm px-3 py-1.5 rounded font-medium border ${isDark ? 'border-[#1E3A66]' : 'border-[#E2D7C3]'}`}
+                className={`text-sm px-4 py-2 rounded-xl font-medium border transition shadow-sm ${isDark ? 'border-[#1E3A66] hover:bg-[#12284A]' : 'border-[#E2D7C3] hover:bg-[#FBF7EC]'}`}
               >
                 {view === 'admin' ? 'Cổng Tra Cứu' : 'Bảng Quản Lý'}
               </button>
-              <button onClick={handleLogout} className="text-red-400 p-2 hover:bg-red-500/10 rounded" title="Đăng xuất">
+              <button onClick={handleLogout} className="text-red-400 p-2 hover:bg-red-500/10 rounded-xl transition" title="Đăng xuất">
                 <LogOut className="w-5 h-5" />
               </button>
             </div>
           ) : (
             <button 
               onClick={() => setView(view === 'login' ? 'portal' : 'login')}
-              className={`flex items-center space-x-1 text-sm px-3 py-1.5 rounded font-medium border ${isDark ? 'border-[#1E3A66]' : 'border-[#E2D7C3]'}`}
+              className={`flex items-center space-x-2 text-sm px-4 py-2 rounded-xl font-medium border transition shadow-sm ${isDark ? 'border-[#1E3A66] hover:bg-[#12284A]' : 'border-[#E2D7C3] hover:bg-[#FBF7EC]'}`}
             >
-              <Shield className="w-4 h-4" />
+              <Shield className="w-4 h-4 text-[#C9A24B]" />
               <span>Quản trị</span>
             </button>
           )}
@@ -471,7 +556,7 @@ export default function App() {
       </header>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-8">
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto p-6 space-y-8">
         
         {/* VIEW 1: CỔNG TRA CỨU PUBLIC */}
         {view === 'portal' && (
@@ -480,8 +565,8 @@ export default function App() {
             <div className="flex justify-center gap-3 border-b border-current/10 pb-4">
               <button
                 onClick={() => setPublicTab('lookup')}
-                className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition ${
-                  publicTab === 'lookup' ? buttonPrimary : 'bg-white/5 opacity-70 hover:opacity-100'
+                className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm ${
+                  publicTab === 'lookup' ? buttonPrimary : 'bg-white/5 opacity-70 hover:opacity-100 hover:bg-white/10'
                 }`}
               >
                 <Search className="w-4 h-4" />
@@ -489,8 +574,8 @@ export default function App() {
               </button>
               <button
                 onClick={() => setPublicTab('edufeed')}
-                className={`flex items-center space-x-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition ${
-                  publicTab === 'edufeed' ? buttonPrimary : 'bg-white/5 opacity-70 hover:opacity-100'
+                className={`flex items-center space-x-2 px-6 py-2.5 rounded-xl font-semibold text-sm transition shadow-sm ${
+                  publicTab === 'edufeed' ? buttonPrimary : 'bg-white/5 opacity-70 hover:opacity-100 hover:bg-white/10'
                 }`}
               >
                 <MessageSquare className="w-4 h-4" />
@@ -501,33 +586,42 @@ export default function App() {
             {/* TAB PUBLIC 1: TRA CỨU HỌC PHÍ */}
             {publicTab === 'lookup' && (
               <div className="space-y-8">
-                <div className="text-center space-y-2 py-4">
-                  <h1 className="font-serif text-4xl font-bold">§1. Tra Cứu Học Phí & Điểm Danh</h1>
-                  <p className="opacity-70 text-sm">Nhập chính xác Họ tên và Lớp để tra cứu mức phí tháng và chi tiết điểm danh.</p>
+                <div className="text-center space-y-2 py-2">
+                  <span className="text-xs font-bold uppercase tracking-widest text-[#C9A24B] flex items-center justify-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5" /> Hệ Thống Cổng Học Viên
+                  </span>
+                  <h1 className="font-serif text-4xl font-bold tracking-tight">Tra Cứu Học Phí & Điểm Danh</h1>
+                  <p className="opacity-70 text-sm max-w-md mx-auto">Nhập chính xác Họ tên và Lớp để tra cứu mức phí tháng và chi tiết điểm danh.</p>
                 </div>
 
-                <form onSubmit={handlePublicLookup} className={`p-6 rounded-xl border ${cardBg} space-y-4 shadow-lg`}>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <form onSubmit={handlePublicLookup} className={`p-8 rounded-2xl border backdrop-blur-xl ${cardBg} space-y-6 shadow-2xl relative overflow-hidden`}>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                     <div className="sm:col-span-2">
-                      <label className="block text-xs uppercase font-semibold mb-1 opacity-80">Họ và Tên Học Sinh</label>
+                      <label className="block text-xs uppercase font-bold mb-2 opacity-80 tracking-wider flex items-center gap-1.5">
+                        <User className="w-3.5 h-3.5 text-[#C9A24B]" />
+                        <span>Họ và Tên Học Sinh</span>
+                      </label>
                       <input 
                         type="text" 
                         required
                         placeholder="Ví dụ: Nguyễn Văn A"
                         value={lookupName}
                         onChange={e => setLookupName(e.target.value)}
-                        className={`w-full px-3 py-2 rounded border bg-transparent focus:outline-none ${isDark ? 'border-[#1E3A66] focus:border-[#C9A24B]' : 'border-[#E2D7C3] focus:border-[#9A7424]'}`}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-transparent focus:outline-none transition ${isDark ? 'border-[#1E3A66] focus:border-[#C9A24B] focus:bg-white/5' : 'border-[#E2D7C3] focus:border-[#9A7424] focus:bg-black/5'}`}
                       />
                     </div>
                     <div>
-                      <label className="block text-xs uppercase font-semibold mb-1 opacity-80">Lớp</label>
+                      <label className="block text-xs uppercase font-bold mb-2 opacity-80 tracking-wider flex items-center gap-1.5">
+                        <GraduationCap className="w-3.5 h-3.5 text-[#C9A24B]" />
+                        <span>Lớp</span>
+                      </label>
                       <input 
                         type="text" 
                         required
-                        placeholder="10A1"
+                        placeholder="Ví dụ: 10A1"
                         value={lookupGrade}
                         onChange={e => setLookupGrade(e.target.value)}
-                        className={`w-full px-3 py-2 rounded border bg-transparent focus:outline-none ${isDark ? 'border-[#1E3A66] focus:border-[#C9A24B]' : 'border-[#E2D7C3] focus:border-[#9A7424]'}`}
+                        className={`w-full px-4 py-2.5 rounded-xl border bg-transparent focus:outline-none transition ${isDark ? 'border-[#1E3A66] focus:border-[#C9A24B] focus:bg-white/5' : 'border-[#E2D7C3] focus:border-[#9A7424] focus:bg-black/5'}`}
                       />
                     </div>
                   </div>
@@ -535,51 +629,72 @@ export default function App() {
                   <button 
                     type="submit" 
                     disabled={isSearching}
-                    className={`w-full py-2.5 rounded font-semibold transition flex items-center justify-center space-x-2 ${buttonPrimary}`}
+                    className={`w-full py-3 rounded-xl font-bold tracking-wide transition flex items-center justify-center space-x-2 shadow-lg ${buttonPrimary}`}
                   >
                     <Search className="w-4 h-4" />
                     <span>{isSearching ? 'Đang tra cứu...' : 'Tra Cứu Học Phí'}</span>
                   </button>
 
                   {lookupError && (
-                    <div className="p-3 rounded bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
+                    <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center font-medium">
                       {lookupError}
                     </div>
                   )}
                 </form>
 
+                {/* GỢI Ý KHI CHƯA TRA CỨU */}
+                {!lookupResult && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                    <div className={`p-5 rounded-2xl border ${cardBg} backdrop-blur-md space-y-2`}>
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-[#C9A24B] flex items-center justify-center font-bold text-sm">1</div>
+                      <h3 className="font-bold text-sm">Nhập Thông Tin</h3>
+                      <p className="text-xs opacity-70">Điền đúng Họ tên và Lớp học sinh đang theo học tại trung tâm.</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${cardBg} backdrop-blur-md space-y-2`}>
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center font-bold text-sm">2</div>
+                      <h3 className="font-bold text-sm">Kiểm Tra Chi Tiết</h3>
+                      <p className="text-xs opacity-70">Xem tổng quan học phí, số buổi điểm danh và lịch sử đi học.</p>
+                    </div>
+                    <div className={`p-5 rounded-2xl border ${cardBg} backdrop-blur-md space-y-2`}>
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-sm">3</div>
+                      <h3 className="font-bold text-sm">Thanh Toán Quét Mã</h3>
+                      <p className="text-xs opacity-70">Sử dụng ứng dụng ngân hàng quét mã VietQR tự động điền số tiền.</p>
+                    </div>
+                  </div>
+                )}
+
                 {lookupResult && (
-                  <div className={`p-6 rounded-xl border ${cardBg} grid grid-cols-1 md:grid-cols-2 gap-6 shadow-xl`}>
-                    <div className="space-y-4">
-                      <div className="border-b pb-3 border-current/10">
-                        <span className="text-xs uppercase tracking-wider opacity-60">Thẻ Kết Quả Học Sinh</span>
-                        <h2 className="font-serif text-3xl font-bold">{lookupResult.name}</h2>
-                        <p className="text-sm opacity-80">Lớp: {lookupResult.grade} · Tháng: {lookupResult.month}</p>
+                  <div className={`p-8 rounded-2xl border backdrop-blur-xl ${cardBg} grid grid-cols-1 md:grid-cols-2 gap-8 shadow-2xl`}>
+                    <div className="space-y-5">
+                      <div className="border-b pb-4 border-current/10">
+                        <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Thẻ Kết Quả Học Sinh</span>
+                        <h2 className="font-serif text-3xl font-bold mt-1">{lookupResult.name}</h2>
+                        <p className="text-sm opacity-80 font-medium">Lớp: {lookupResult.grade} · Tháng: {lookupResult.month}</p>
                       </div>
 
-                      <div className="p-4 rounded border border-current/10 bg-black/5 space-y-1">
-                        <span className="text-xs font-semibold uppercase opacity-70 block">HỌC PHÍ THÁNG {lookupResult.month}</span>
-                        <div className="text-lg">
+                      <div className="p-4 rounded-xl border border-current/10 bg-black/5 space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-70 block">HỌC PHÍ THÁNG {lookupResult.month}</span>
+                        <div className="text-xl font-bold">
                           <MathFormula math={` ${lookupResult.monthlyFee.toLocaleString()} \\text{ VNĐ}`} block />
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-2">
-                        <span className="text-sm">Trạng thái đóng phí:</span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${lookupResult.status === 'PAID' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-sm font-semibold">Trạng thái đóng phí:</span>
+                        <span className={`px-4 py-1.5 rounded-full text-xs font-bold shadow-sm ${lookupResult.status === 'PAID' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`}>
                           {lookupResult.status === 'PAID' ? 'ĐÃ THANH TOÁN' : 'CHƯA THANH TOÁN'}
                         </span>
                       </div>
 
-                      <div className="space-y-2">
+                      <div className="space-y-3 pt-2">
                         <h3 className="font-semibold text-sm flex items-center space-x-2">
-                          <Calendar className="w-4 h-4" />
-                          <span>Nhật ký điểm danh (Số buổi có mặt: {lookupResult.attendedPeriods})</span>
+                          <Calendar className="w-4 h-4 text-[#C9A24B]" />
+                          <span>Nhật ký điểm danh (Có mặt: {lookupResult.attendedPeriods} buổi)</span>
                         </h3>
-                        <div className="max-h-40 overflow-y-auto space-y-1 text-xs pr-2">
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 text-xs pr-2 custom-scrollbar">
                           {lookupResult.attendanceLogs.map((log, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-2 rounded border border-current/10">
-                              <span>{log.date} {log.note || 'Buổi học'}</span>
+                            <div key={idx} className="flex items-center justify-between p-2.5 rounded-xl border border-current/10 bg-white/5">
+                              <span className="font-medium">{log.date} — {log.note || 'Buổi học'}</span>
                               {log.status === 'PRESENT' ? (
                                 <span className="text-emerald-400 font-bold flex items-center space-x-1"><CheckCircle2 className="w-3.5 h-3.5" /> <span>Có mặt</span></span>
                               ) : (
@@ -591,10 +706,17 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center p-4 border border-current/10 rounded-xl bg-white/5 text-center space-y-3">
-                      <span className="text-xs uppercase font-semibold opacity-80">Quét VietQR Chuyển Khoản Tự Động</span>
-                      <img src={lookupResult.qrUrl} alt="VietQR Payment" className="w-56 h-56 object-contain rounded bg-white p-2" />
-                      <p className="text-xs opacity-70">BIDV · THÁI HỮU PHÚC · 8813196135</p>
+                    <div className="flex flex-col items-center justify-center p-6 border border-current/10 rounded-2xl bg-white/5 text-center space-y-4">
+                      <span className="text-xs uppercase font-bold tracking-wider opacity-80 flex items-center gap-1.5">
+                        <QrCode className="w-4 h-4 text-[#C9A24B]" /> Quét VietQR Chuyển Khoản Tự Động
+                      </span>
+                      <div className="p-3 bg-white rounded-2xl shadow-xl">
+                        <img src={lookupResult.qrUrl} alt="VietQR Payment" className="w-56 h-56 object-contain rounded-xl" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <p className="text-xs font-bold opacity-90">BIDV · THÁI HỮU PHÚC</p>
+                        <p className="text-xs font-mono opacity-70">8813196135</p>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -609,28 +731,30 @@ export default function App() {
         {/* VIEW 2: ĐĂNG NHẬP ADMIN */}
         {view === 'login' && (
           <div className="max-w-md mx-auto py-12">
-            <form onSubmit={handleAdminLogin} className={`p-8 rounded-xl border ${cardBg} space-y-6 shadow-2xl`}>
+            <form onSubmit={handleAdminLogin} className={`p-8 rounded-2xl border backdrop-blur-xl ${cardBg} space-y-6 shadow-2xl`}>
               <div className="text-center space-y-2">
-                <Shield className={`w-12 h-12 mx-auto ${accentColor}`} />
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                  <Shield className={`w-8 h-8 ${accentColor}`} />
+                </div>
                 <h2 className="font-serif text-3xl font-bold">Xác Thực Quản Trị</h2>
                 <p className="text-xs opacity-70">Nhập mật khẩu quản trị để mở khóa hệ thống EduFee.</p>
               </div>
 
               <div>
-                <label className="block text-xs uppercase font-semibold mb-1 opacity-80">Mật khẩu Admin</label>
+                <label className="block text-xs uppercase font-bold mb-1 opacity-80">Mật khẩu Admin</label>
                 <input 
                   type="password" 
                   required
                   placeholder="Mặc định: 123456"
                   value={adminPassword}
                   onChange={e => setAdminPassword(e.target.value)}
-                  className={`w-full px-3 py-2 rounded border bg-transparent focus:outline-none ${isDark ? 'border-[#1E3A66] focus:border-[#C9A24B]' : 'border-[#E2D7C3] focus:border-[#9A7424]'}`}
+                  className={`w-full px-4 py-2.5 rounded-xl border bg-transparent focus:outline-none transition ${isDark ? 'border-[#1E3A66] focus:border-[#C9A24B]' : 'border-[#E2D7C3] focus:border-[#9A7424]'}`}
                 />
               </div>
 
-              {adminError && <div className="text-red-400 text-xs text-center">{adminError}</div>}
+              {adminError && <div className="text-red-400 text-xs text-center font-medium">{adminError}</div>}
 
-              <button type="submit" className={`w-full py-2.5 rounded font-semibold transition ${buttonPrimary}`}>
+              <button type="submit" className={`w-full py-3 rounded-xl font-bold tracking-wide transition shadow-lg ${buttonPrimary}`}>
                 Đăng Nhập Quản Trị
               </button>
             </form>
@@ -645,22 +769,22 @@ export default function App() {
               
               <div className="flex items-center space-x-3">
                 {/* ADMIN TAB SWITCHER */}
-                <div className="flex rounded-lg border border-current/20 p-1">
+                <div className="flex rounded-xl border border-current/20 p-1 bg-black/5">
                   <button 
                     onClick={() => setAdminTab('students')}
-                    className={`px-3 py-1.5 rounded text-xs font-semibold ${adminTab === 'students' ? buttonPrimary : 'opacity-70'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${adminTab === 'students' ? buttonPrimary : 'opacity-70 hover:opacity-100'}`}
                   >
                     Học Phí Theo Tháng
                   </button>
                   <button 
                     onClick={() => setAdminTab('attendance')}
-                    className={`px-3 py-1.5 rounded text-xs font-semibold ${adminTab === 'attendance' ? buttonPrimary : 'opacity-70'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${adminTab === 'attendance' ? buttonPrimary : 'opacity-70 hover:opacity-100'}`}
                   >
                     Điểm Danh Theo Buổi
                   </button>
                   <button 
                     onClick={() => setAdminTab('feed')}
-                    className={`px-3 py-1.5 rounded text-xs font-semibold ${adminTab === 'feed' ? buttonPrimary : 'opacity-70'}`}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold transition ${adminTab === 'feed' ? buttonPrimary : 'opacity-70 hover:opacity-100'}`}
                   >
                     ✍️ Quản Lý Bảng Tin & KaTeX
                   </button>
@@ -670,9 +794,9 @@ export default function App() {
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => setIsRolloverModalOpen(true)}
-                      className={`px-3 py-2 rounded font-semibold text-xs flex items-center gap-1.5 border ${
+                      className={`px-3.5 py-2 rounded-xl font-semibold text-xs flex items-center gap-1.5 border ${
                         isDark ? 'border-[#C9A24B]/40 text-[#C9A24B] hover:bg-[#C9A24B]/10' : 'border-[#9A7424]/40 text-[#9A7424] hover:bg-[#9A7424]/10'
-                      } transition`}
+                      } transition shadow-sm`}
                       title="Lưu vết tháng cũ vào lịch sử và chuyển tất cả học sinh sang tháng mới"
                     >
                       <span className="text-sm">🔄</span>
@@ -681,7 +805,7 @@ export default function App() {
 
                     <button 
                       onClick={() => setIsDrawerOpen(true)}
-                      className={`px-4 py-2 rounded font-semibold text-xs flex items-center gap-2 ${buttonPrimary}`}
+                      className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg ${buttonPrimary}`}
                     >
                       <UserPlus className="w-4 h-4" /> Thêm học sinh
                     </button>
@@ -695,42 +819,50 @@ export default function App() {
               <>
                 {/* STAT CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  <div className={`p-6 rounded-2xl border ${cardBg} flex items-center justify-between`}>
+                  <div className={`p-6 rounded-2xl border backdrop-blur-md ${cardBg} flex items-center justify-between shadow-lg`}>
                     <div>
-                      <p className="text-xs uppercase opacity-60">Tổng học sinh</p>
-                      <h3 className="text-3xl font-extrabold">{stats.totalStudents}</h3>
+                      <p className="text-[10px] font-bold uppercase opacity-60 tracking-wider">Tổng học sinh</p>
+                      <h3 className="text-3xl font-extrabold mt-1">{stats.totalStudents}</h3>
                     </div>
-                    <Users className="w-7 h-7 text-blue-400" />
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                      <Users className="w-6 h-6 text-blue-400" />
+                    </div>
                   </div>
 
-                  <div className={`p-6 rounded-2xl border ${cardBg} flex items-center justify-between`}>
+                  <div className={`p-6 rounded-2xl border backdrop-blur-md ${cardBg} flex items-center justify-between shadow-lg`}>
                     <div>
-                      <p className="text-xs uppercase opacity-60">Thực thu tháng</p>
-                      <h3 className="text-2xl font-extrabold text-emerald-400">{stats.collectedRevenue.toLocaleString()} đ</h3>
+                      <p className="text-[10px] font-bold uppercase opacity-60 tracking-wider">Thực thu tháng</p>
+                      <h3 className="text-2xl font-extrabold text-emerald-400 mt-1">{stats.collectedRevenue.toLocaleString()} đ</h3>
                     </div>
-                    <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                    </div>
                   </div>
 
-                  <div className={`p-6 rounded-2xl border ${cardBg} flex items-center justify-between`}>
+                  <div className={`p-6 rounded-2xl border backdrop-blur-md ${cardBg} flex items-center justify-between shadow-lg`}>
                     <div>
-                      <p className="text-xs uppercase opacity-60">Công nợ tháng</p>
-                      <h3 className="text-2xl font-extrabold text-amber-400">{stats.pendingRevenue.toLocaleString()} đ</h3>
+                      <p className="text-[10px] font-bold uppercase opacity-60 tracking-wider">Công nợ tháng</p>
+                      <h3 className="text-2xl font-extrabold text-amber-400 mt-1">{stats.pendingRevenue.toLocaleString()} đ</h3>
                     </div>
-                    <Wallet className="w-7 h-7 text-amber-400" />
+                    <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                      <Wallet className="w-6 h-6 text-amber-400" />
+                    </div>
                   </div>
 
-                  <div className={`p-6 rounded-2xl border ${cardBg} flex items-center justify-between`}>
+                  <div className={`p-6 rounded-2xl border backdrop-blur-md ${cardBg} flex items-center justify-between shadow-lg`}>
                     <div>
-                      <p className="text-xs uppercase opacity-60">Tổng lượt có mặt</p>
-                      <h3 className="text-3xl font-extrabold">{stats.totalPeriods} <span className="text-sm font-normal opacity-60">buổi</span></h3>
+                      <p className="text-[10px] font-bold uppercase opacity-60 tracking-wider">Tổng lượt có mặt</p>
+                      <h3 className="text-3xl font-extrabold mt-1">{stats.totalPeriods} <span className="text-sm font-normal opacity-60">buổi</span></h3>
                     </div>
-                    <Clock className="w-7 h-7 text-indigo-400" />
+                    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                      <Clock className="w-6 h-6 text-indigo-400" />
+                    </div>
                   </div>
                 </div>
 
                 {/* CHARTS */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className={`lg:col-span-2 p-6 rounded-2xl border ${cardBg} space-y-4`}>
+                  <div className={`lg:col-span-2 p-6 rounded-2xl border backdrop-blur-md ${cardBg} space-y-4 shadow-lg`}>
                     <h2 className="text-lg font-bold flex items-center gap-2"><BarChart3 className="w-5 h-5 text-indigo-400" /> Doanh thu theo Lớp</h2>
                     <div className="h-64 w-full">
                       <ResponsiveContainer width="100%" height="100%">
@@ -746,7 +878,7 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className={`p-6 rounded-2xl border ${cardBg} flex flex-col justify-between`}>
+                  <div className={`p-6 rounded-2xl border backdrop-blur-md ${cardBg} flex flex-col justify-between shadow-lg`}>
                     <h2 className="text-lg font-bold flex items-center gap-2"><PieIcon className="w-5 h-5 text-emerald-400" /> Tỷ lệ thu học phí</h2>
                     <div className="h-56 w-full relative">
                       <ResponsiveContainer width="100%" height="100%">
@@ -761,14 +893,14 @@ export default function App() {
                 </div>
 
                 {/* MAIN TABLE TAB 1 */}
-                <div className={`p-6 rounded-2xl border ${cardBg} space-y-4`}>
+                <div className={`p-6 rounded-2xl border backdrop-blur-md ${cardBg} space-y-4 shadow-lg`}>
                   <div className="flex justify-between items-center border-b pb-4 border-current/10">
                     <h2 className="text-lg font-bold">Danh sách học phí hàng tháng</h2>
                     <div className="flex items-center space-x-3">
                       <select 
                         value={selectedGradeFilter} 
                         onChange={e => setSelectedGradeFilter(e.target.value)}
-                        className="bg-transparent border border-current/20 rounded px-2 py-1 text-xs"
+                        className="bg-transparent border border-current/20 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none"
                       >
                         {availableGrades.map(g => <option key={g} value={g} className="text-slate-900">{g === 'ALL' ? 'Tất cả lớp' : `Lớp ${g}`}</option>)}
                       </select>
@@ -777,7 +909,7 @@ export default function App() {
                         placeholder="Tìm kiếm..." 
                         value={searchTerm} 
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="bg-transparent border border-current/20 rounded px-2 py-1 text-xs"
+                        className="bg-transparent border border-current/20 rounded-xl px-3 py-1.5 text-xs focus:outline-none"
                       />
                     </div>
                   </div>
@@ -829,28 +961,28 @@ export default function App() {
                               <td className="p-3 text-right space-x-1.5">
                                 <button
                                   onClick={() => setSelectedQr(s.qrUrl)}
-                                  className="p-1.5 rounded border border-current/20 hover:bg-white/10"
+                                  className="p-2 rounded-lg border border-current/20 hover:bg-white/10 transition"
                                   title="Xem mã VietQR"
                                 >
                                   <QrCode className="w-4 h-4 text-amber-400" />
                                 </button>
                                 <button
                                   onClick={() => handleExportPDF(s)}
-                                  className="p-1.5 rounded border border-current/20 hover:bg-white/10"
+                                  className="p-2 rounded-lg border border-current/20 hover:bg-white/10 transition"
                                   title="Xuất phiếu thu PDF A5"
                                 >
                                   <FileText className="w-4 h-4 text-blue-400" />
                                 </button>
                                 <button
                                   onClick={() => setEditingStudent(s)}
-                                  className="p-1.5 rounded border border-current/20 hover:bg-white/10"
+                                  className="p-2 rounded-lg border border-current/20 hover:bg-white/10 transition"
                                   title="Sửa thông tin"
                                 >
                                   <Pencil className="w-4 h-4 text-stone-300" />
                                 </button>
                                 <button
                                   onClick={() => setDeletingStudent(s)}
-                                  className="p-1.5 rounded border border-current/20 hover:bg-white/10"
+                                  className="p-2 rounded-lg border border-current/20 hover:bg-white/10 transition"
                                   title="Xóa"
                                 >
                                   <Trash2 className="w-4 h-4 text-rose-400" />
@@ -868,7 +1000,7 @@ export default function App() {
 
             {/* TAB ADMIN 2: ĐIỂM DANH THEO BUỔI */}
             {adminTab === 'attendance' && (
-              <div className={`p-6 rounded-2xl border ${cardBg} space-y-6`}>
+              <div className={`p-6 rounded-2xl border backdrop-blur-md ${cardBg} space-y-6 shadow-lg`}>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 border-current/10">
                   <div>
                     <h2 className="text-xl font-bold flex items-center gap-2"><Calendar className="w-5 h-5 text-indigo-400" /> Bảng Điểm Danh Lớp Học</h2>
@@ -877,34 +1009,34 @@ export default function App() {
 
                   <div className="flex flex-wrap items-center gap-3">
                     <div>
-                      <label className="text-xs block opacity-60">Chọn Lớp</label>
+                      <label className="text-xs block opacity-60 mb-0.5">Chọn Lớp</label>
                       <select 
                         value={attGrade} 
                         onChange={e => setAttGrade(e.target.value)}
-                        className="bg-transparent border border-current/20 rounded px-3 py-1.5 text-sm font-bold text-slate-900 bg-white"
+                        className="bg-white text-slate-900 border border-current/20 rounded-xl px-3 py-1.5 text-sm font-bold focus:outline-none"
                       >
                         {availableGrades.filter(g => g !== 'ALL').map(g => <option key={g} value={g}>Lớp {g}</option>)}
                       </select>
                     </div>
 
                     <div>
-                      <label className="text-xs block opacity-60">Ngày dạy</label>
+                      <label className="text-xs block opacity-60 mb-0.5">Ngày dạy</label>
                       <input 
                         type="date" 
                         value={attDate} 
                         onChange={e => setAttDate(e.target.value)}
-                        className="bg-transparent border border-current/20 rounded px-3 py-1 text-sm"
+                        className="bg-transparent border border-current/20 rounded-xl px-3 py-1.5 text-sm focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs block opacity-60">Nội dung buổi học</label>
+                      <label className="text-xs block opacity-60 mb-0.5">Nội dung buổi học</label>
                       <input 
                         type="text" 
                         value={attNote} 
                         onChange={e => setAttNote(e.target.value)}
                         placeholder="Nội dung..."
-                        className="bg-transparent border border-current/20 rounded px-3 py-1 text-sm"
+                        className="bg-transparent border border-current/20 rounded-xl px-3 py-1.5 text-sm focus:outline-none"
                       />
                     </div>
 
@@ -912,7 +1044,7 @@ export default function App() {
                       <button 
                         type="button"
                         onClick={handleExportMonthlyCSV}
-                        className="px-3.5 py-2 rounded font-semibold text-xs flex items-center gap-1.5 border border-emerald-600/50 text-emerald-400 hover:bg-emerald-600/10 transition shadow-sm"
+                        className="px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5 border border-emerald-600/50 text-emerald-400 hover:bg-emerald-600/10 transition shadow-sm"
                         title="Xuất Báo cáo Điểm danh vắng & Trạng thái học phí theo Tháng ra Excel"
                       >
                         <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
@@ -921,7 +1053,7 @@ export default function App() {
 
                       <button 
                         onClick={handleSaveAttendance}
-                        className={`px-4 py-2 rounded font-semibold text-xs flex items-center gap-2 ${buttonPrimary}`}
+                        className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 shadow-lg ${buttonPrimary}`}
                       >
                         <Save className="w-4 h-4" /> Lưu Điểm Danh
                       </button>
@@ -930,7 +1062,7 @@ export default function App() {
                 </div>
 
                 {attSavedMsg && (
-                  <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-sm rounded text-center">
+                  <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-sm rounded-xl text-center font-medium">
                     {attSavedMsg}
                   </div>
                 )}
@@ -955,19 +1087,19 @@ export default function App() {
                         students.filter(s => String(s.grade) === String(attGrade)).map(s => {
                           const status = attRecords[s.id] || 'PRESENT';
                           return (
-                            <tr key={s.id} className="hover:bg-white/5">
+                            <tr key={s.id} className="hover:bg-white/5 transition-colors">
                               <td className="p-3 font-semibold">{s.name}</td>
                               <td className="p-3">{s.grade}</td>
                               <td className="p-3 text-center space-x-3">
                                 <button 
                                   onClick={() => setAttRecords(prev => ({ ...prev, [s.id]: 'PRESENT' }))}
-                                  className={`px-4 py-1.5 rounded text-xs font-bold transition ${status === 'PRESENT' ? 'bg-emerald-600 text-white' : 'border border-current/20 opacity-50'}`}
+                                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${status === 'PRESENT' ? 'bg-emerald-600 text-white shadow-md' : 'border border-current/20 opacity-50'}`}
                                 >
                                   ✓ Có Mặt
                                 </button>
                                 <button 
                                   onClick={() => setAttRecords(prev => ({ ...prev, [s.id]: 'ABSENT' }))}
-                                  className={`px-4 py-1.5 rounded text-xs font-bold transition ${status === 'ABSENT' ? 'bg-rose-600 text-white' : 'border border-current/20 opacity-50'}`}
+                                  className={`px-4 py-1.5 rounded-xl text-xs font-bold transition ${status === 'ABSENT' ? 'bg-rose-600 text-white shadow-md' : 'border border-current/20 opacity-50'}`}
                                 >
                                   ✕ Vắng
                                 </button>
@@ -1003,7 +1135,7 @@ export default function App() {
                       type="text" required 
                       value={editingStudent ? editingStudent.name : name} 
                       onChange={e => editingStudent ? setEditingStudent({...editingStudent, name: e.target.value}) : setName(e.target.value)}
-                      className="w-full px-3 py-2 border rounded bg-slate-50 text-sm" 
+                      className="w-full px-3 py-2 border rounded-xl bg-slate-50 text-sm focus:outline-none" 
                     />
                   </div>
                   <div>
@@ -1012,7 +1144,7 @@ export default function App() {
                       type="text" required 
                       value={editingStudent ? editingStudent.grade : grade} 
                       onChange={e => editingStudent ? setEditingStudent({...editingStudent, grade: e.target.value}) : setGrade(e.target.value)}
-                      className="w-full px-3 py-2 border rounded bg-slate-50 text-sm" 
+                      className="w-full px-3 py-2 border rounded-xl bg-slate-50 text-sm focus:outline-none" 
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -1022,7 +1154,7 @@ export default function App() {
                         type="number" 
                         value={editingStudent ? editingStudent.monthlyFee : monthlyFee} 
                         onChange={e => editingStudent ? setEditingStudent({...editingStudent, monthlyFee: e.target.value}) : setMonthlyFee(e.target.value)}
-                        className="w-full px-3 py-2 border rounded bg-slate-50 text-sm" 
+                        className="w-full px-3 py-2 border rounded-xl bg-slate-50 text-sm focus:outline-none" 
                       />
                     </div>
                     <div>
@@ -1031,16 +1163,16 @@ export default function App() {
                         type="text" 
                         value={editingStudent ? editingStudent.month : month} 
                         onChange={e => editingStudent ? setEditingStudent({...editingStudent, month: e.target.value}) : setMonth(e.target.value)}
-                        className="w-full px-3 py-2 border rounded bg-slate-50 text-sm" 
+                        className="w-full px-3 py-2 border rounded-xl bg-slate-50 text-sm focus:outline-none" 
                       />
                     </div>
                   </div>
-                  <button type="submit" disabled={loading} className="w-full py-2.5 bg-indigo-600 text-white rounded font-semibold text-sm">
+                  <button type="submit" disabled={loading} className="w-full py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-md hover:bg-indigo-700 transition">
                     {loading ? 'Đang lưu...' : 'Lưu học sinh'}
                   </button>
                 </form>
               </div>
-              <button onClick={() => { setIsDrawerOpen(false); setEditingStudent(null); }} className="w-full py-2 border rounded font-semibold text-sm">Hủy</button>
+              <button onClick={() => { setIsDrawerOpen(false); setEditingStudent(null); }} className="w-full py-2 border rounded-xl font-semibold text-sm">Hủy</button>
             </div>
           </div>
         </div>
@@ -1049,12 +1181,14 @@ export default function App() {
       {/* MODAL VIETQR PREVIEW */}
       {selectedQr && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`max-w-sm w-full p-6 rounded-2xl border ${cardBg} text-center space-y-4`}>
+          <div className={`max-w-sm w-full p-6 rounded-2xl border ${cardBg} text-center space-y-4 shadow-2xl`}>
             <h3 className="font-serif font-bold text-lg">Mã VietQR Thanh Toán</h3>
-            <img src={selectedQr} alt="QR Code" className="w-64 h-64 mx-auto rounded bg-white p-2" />
+            <div className="p-3 bg-white rounded-2xl inline-block shadow-md">
+              <img src={selectedQr} alt="QR Code" className="w-64 h-64 object-contain rounded-xl" />
+            </div>
             <button 
               onClick={() => setSelectedQr(null)}
-              className="w-full py-2 bg-stone-700 hover:bg-stone-600 text-white text-xs font-bold rounded"
+              className="w-full py-2.5 bg-stone-700 hover:bg-stone-600 text-white text-xs font-bold rounded-xl transition"
             >
               Đóng
             </button>
@@ -1065,12 +1199,12 @@ export default function App() {
       {/* MODAL XÁC NHẬN XÓA */}
       {deletingStudent && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className={`max-w-sm w-full p-6 rounded-2xl border ${cardBg} space-y-4`}>
+          <div className={`max-w-sm w-full p-6 rounded-2xl border ${cardBg} space-y-4 shadow-2xl`}>
             <h3 className="font-serif font-bold text-lg text-rose-400">⚠️ Xác nhận xóa</h3>
             <p className="text-xs opacity-80">Bạn có chắc chắn muốn xóa học sinh <strong>{deletingStudent.name}</strong> không?</p>
             <div className="flex justify-end space-x-2 pt-2">
-              <button onClick={() => setDeletingStudent(null)} className="px-3 py-1.5 rounded text-xs border border-current/20">Hủy</button>
-              <button onClick={handleDeleteStudent} className="px-3 py-1.5 rounded text-xs bg-rose-600 text-white font-bold">Xóa</button>
+              <button onClick={() => setDeletingStudent(null)} className="px-4 py-2 rounded-xl text-xs font-semibold border border-current/20">Hủy</button>
+              <button onClick={handleDeleteStudent} className="px-4 py-2 rounded-xl text-xs bg-rose-600 text-white font-bold shadow-md">Xóa</button>
             </div>
           </div>
         </div>
@@ -1079,7 +1213,7 @@ export default function App() {
       {/* MODAL DIALOG CHUYỂN THÁNG HỌC PHÍ (ROLLOVER) */}
       {isRolloverModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className={`max-w-md w-full p-6 rounded-xl border shadow-2xl ${cardBg} space-y-4`}>
+          <div className={`max-w-md w-full p-6 rounded-2xl border shadow-2xl ${cardBg} space-y-4`}>
             <div className="flex items-center space-x-3 border-b pb-3 border-current/10">
               <span className="text-2xl">⚠️</span>
               <div>
@@ -1098,13 +1232,13 @@ export default function App() {
             </div>
 
             <div>
-              <label className="block text-xs uppercase font-semibold mb-1 opacity-80">Tháng áp dụng mới</label>
+              <label className="block text-xs uppercase font-bold mb-1 opacity-80">Tháng áp dụng mới</label>
               <input 
                 type="text"
                 value={nextMonthInput}
                 onChange={e => setNextMonthInput(e.target.value)}
                 placeholder="Ví dụ: 11/2026"
-                className={`w-full px-3 py-2 rounded border bg-transparent font-mono text-sm focus:outline-none ${
+                className={`w-full px-3 py-2 rounded-xl border bg-transparent font-mono text-sm focus:outline-none ${
                   isDark ? 'border-[#1E3A66] focus:border-[#C9A24B]' : 'border-[#E2D7C3] focus:border-[#9A7424]'
                 }`}
               />
@@ -1115,7 +1249,7 @@ export default function App() {
                 type="button"
                 disabled={isRolloverLoading}
                 onClick={() => setIsRolloverModalOpen(false)}
-                className="px-4 py-2 rounded text-xs font-semibold border border-current/20 hover:bg-white/5"
+                className="px-4 py-2 rounded-xl text-xs font-semibold border border-current/20 hover:bg-white/5"
               >
                 Hủy bỏ
               </button>
@@ -1123,7 +1257,7 @@ export default function App() {
                 type="button"
                 disabled={isRolloverLoading}
                 onClick={handleMonthRollover}
-                className={`px-4 py-2 rounded text-xs font-semibold flex items-center space-x-2 ${buttonPrimary}`}
+                className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-2 shadow-lg ${buttonPrimary}`}
               >
                 {isRolloverLoading ? 'Đang chuyển...' : '✓ Xác Nhận Chuyển Tháng'}
               </button>
@@ -1133,8 +1267,11 @@ export default function App() {
       )}
 
       {/* FOOTER */}
-      <footer className={`border-t ${isDark ? 'border-[#1E3A66]' : 'border-[#E2D7C3]'} py-4 text-center text-xs opacity-60 font-serif italic`}>
-        "Mathematics is the language in which God has written the universe." — Galileo Galilei
+      <footer className={`relative z-10 border-t ${isDark ? 'border-[#1E3A66] bg-[#0B1B33]/60' : 'border-[#E2D7C3] bg-[#F6F0E1]/60'} backdrop-blur-md py-6 text-center text-xs opacity-80 font-serif italic flex items-center justify-center gap-2`}>
+        <span className="text-[#C9A24B] font-serif text-lg font-bold">“</span>
+        <span>Mathematics is the language in which God has written the universe.</span>
+        <span className="text-[#C9A24B] font-serif text-lg font-bold">”</span>
+        <span className="not-italic opacity-60 ml-2">— Galileo Galilei</span>
       </footer>
     </div>
   );
