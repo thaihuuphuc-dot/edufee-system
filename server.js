@@ -11,13 +11,31 @@ const mongoose = require('mongoose');
 // ==========================================
 // KẾT NỐI MONGODB ATLAS CLOUD
 // ==========================================
-// Chuỗi kết nối dạng Standard trực tiếp (Không phụ thuộc DNS SRV của nhà mạng)
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://HuuPhuc:Huuphuc1511@cluster0-shard-00-00.kf1zbxe.mongodb.net:27017,cluster0-shard-00-01.kf1zbxe.mongodb.net:27017,cluster0-shard-00-02.kf1zbxe.mongodb.net:27017/edufee_db?ssl=true&replicaSet=atlas-13o6g0-shard-0&authSource=admin&retryWrites=true&w=majority";
+
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('✅ Đã kết nối thành công với MongoDB Atlas Cloud!'))
+  .then(() => {
+    console.log('✅ Đã kết nối thành công với MongoDB Atlas Cloud!');
+    seedInitialStudents(); // Kiểm tra và sync dữ liệu ban đầu từ students.json nếu DB trống
+  })
   .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
 
-// 1. Schema Bài Viết (Posts)
+// 1. Schema Học sinh (Students) - MỚI
+const studentSchema = new mongoose.Schema({
+  id: { type: Number, required: true, unique: true },
+  name: { type: String, required: true },
+  grade: { type: String, required: true },
+  feePerPeriod: { type: Number, default: 350000 },
+  monthlyFee: { type: Number, default: 350000 },
+  month: { type: String, default: '10/2026' },
+  status: { type: String, default: 'UNPAID' },
+  attendanceLogs: { type: Array, default: [] },
+  paymentHistory: { type: Array, default: [] }
+}, { timestamps: true });
+
+const Student = mongoose.model('Student', studentSchema);
+
+// 2. Schema Bài Viết (Posts)
 const postSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
@@ -29,7 +47,7 @@ const postSchema = new mongoose.Schema({
 });
 const Post = mongoose.model('Post', postSchema);
 
-// 2. Schema Bình Luận (Comments)
+// 3. Schema Bình Luận (Comments)
 const commentSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   postId: { type: String, required: true },
@@ -75,10 +93,8 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // ==========================================
-// 3. CẤU HÌNH ĐƯỜNG DẪN DỮ LIỆU JSON & AUTH
+// 3. CẤU HÌNH AUTH & THÔNG TIN NGÂN HÀNG
 // ==========================================
-const DATA_FILE = path.join(__dirname, 'data', 'students.json');
-
 const JWT_SECRET = 'edufee_math_classic_secret_key_2026';
 const ADMIN_PASSWORD_HASH = bcrypt.hashSync('15112006', 10);
 
@@ -88,55 +104,27 @@ const BANK_CONFIG = {
   accountName: "THAI HUU PHUC",
 };
 
-// Dữ liệu học sinh mặc định
-const DEFAULT_STUDENTS = [
-  {
-    id: 1,
-    name: "Khang",
-    grade: "11",
-    feePerPeriod: 350000,
-    monthlyFee: 350000,
-    month: "10/2026",
-    status: "PAID",
-    attendanceLogs: [
-      {
-        date: "2026-10-26",
-        status: "ABSENT",
-        note: "Đại số §1"
+// ==========================================
+// 4. HÀM TỰ ĐỘNG SYNC DỮ LIỆU CŨ LÊN MONGODB (Chạy 1 lần khi DB trống)
+// ==========================================
+async function seedInitialStudents() {
+  try {
+    const count = await Student.countDocuments();
+    if (count === 0) {
+      const jsonPath = path.join(__dirname, 'data', 'students.json');
+      if (fs.existsSync(jsonPath)) {
+        const rawData = fs.readFileSync(jsonPath, 'utf-8');
+        const students = JSON.parse(rawData || '[]');
+        if (students.length > 0) {
+          await Student.insertMany(students);
+          console.log('📦 Đã tự động chuyển dữ liệu từ students.json lên MongoDB Atlas!');
+        }
       }
-    ],
-    paymentHistory: []
-  }
-];
-
-// ==========================================
-// 4. HÀM BỔ TRỢ ĐỌC / GHI DỮ LIỆU HỌC SINH
-// ==========================================
-const readStudentsData = () => {
-  try {
-    const dir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify(DEFAULT_STUDENTS, null, 2), 'utf-8');
-      return DEFAULT_STUDENTS;
     }
-    const content = fs.readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(content || '[]');
   } catch (err) {
-    console.error('Lỗi đọc file students.json:', err);
-    return DEFAULT_STUDENTS;
+    console.error('Lỗi khi seed dữ liệu học sinh:', err);
   }
-};
-
-const writeStudentsData = (data) => {
-  try {
-    const dir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Lỗi ghi file students.json:', err);
-  }
-};
+}
 
 const authenticateAdmin = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -158,9 +146,7 @@ const lookupLimiter = rateLimit({
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ==========================================
 // API UPLOAD FILE LÊN CLOUDINARY
-// ==========================================
 app.post('/api/upload', authenticateAdmin, upload.single('file'), (req, res) => {
   try {
     if (!req.file) {
@@ -182,49 +168,52 @@ app.post('/api/upload', authenticateAdmin, upload.single('file'), (req, res) => 
 });
 
 // ==========================================
-// 5. API PUBLIC: TRA CỨU HỌC SINH
+// 5. API PUBLIC: TRA CỨU HỌC SINH (DÙNG MONGODB)
 // ==========================================
-app.post('/api/public/lookup', lookupLimiter, (req, res) => {
-  const { fullName, grade } = req.body;
-  if (!fullName || !grade) {
-    return res.status(400).json({ error: 'Vui lòng nhập đầy đủ Họ tên và Lớp.' });
+app.post('/api/public/lookup', lookupLimiter, async (req, res) => {
+  try {
+    const { fullName, grade } = req.body;
+    if (!fullName || !grade) {
+      return res.status(400).json({ error: 'Vui lòng nhập đầy đủ Họ tên và Lớp.' });
+    }
+
+    const student = await Student.findOne({
+      name: new RegExp(`^${fullName.trim()}$`, 'i'),
+      grade: String(grade).trim()
+    });
+
+    if (!student) {
+      return res.status(404).json({ error: 'Không tìm thấy thông tin học sinh khớp dữ liệu.' });
+    }
+
+    const logs = student.attendanceLogs || [];
+    const attendedPeriods = logs.filter(l => l.status === 'PRESENT').length;
+    const totalFee = Number(student.monthlyFee) || 0;
+
+    const params = new URLSearchParams({
+      amount: String(totalFee),
+      addInfo: `Hoc phi Thang ${student.month || '10/2026'} ${student.name} Lop ${student.grade}`,
+      accountName: BANK_CONFIG.accountName,
+    });
+    const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-compact2.png?${params.toString()}`;
+
+    res.json({
+      id: student.id,
+      name: student.name,
+      grade: student.grade,
+      month: student.month || '10/2026',
+      monthlyFee: totalFee,
+      feePerPeriod: student.feePerPeriod || 0,
+      status: student.status,
+      attendedPeriods,
+      totalFee,
+      qrUrl,
+      attendanceLogs: logs,
+      paymentHistory: student.paymentHistory || []
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi tra cứu thông tin học sinh.' });
   }
-
-  const students = readStudentsData();
-  const student = students.find(s =>
-    s.name.trim().toLowerCase() === fullName.trim().toLowerCase() &&
-    String(s.grade).trim().toLowerCase() === String(grade).trim().toLowerCase()
-  );
-
-  if (!student) {
-    return res.status(404).json({ error: 'Không tìm thấy thông tin học sinh khớp dữ liệu.' });
-  }
-
-  const logs = student.attendanceLogs || [];
-  const attendedPeriods = logs.filter(l => l.status === 'PRESENT').length;
-  const totalFee = Number(student.monthlyFee) || 0;
-
-  const params = new URLSearchParams({
-    amount: String(totalFee),
-    addInfo: `Hoc phi Thang ${student.month || '10/2026'} ${student.name} Lop ${student.grade}`,
-    accountName: BANK_CONFIG.accountName,
-  });
-  const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-compact2.png?${params.toString()}`;
-
-  res.json({
-    id: student.id,
-    name: student.name,
-    grade: student.grade,
-    month: student.month || '10/2026',
-    monthlyFee: totalFee,
-    feePerPeriod: student.feePerPeriod || 0,
-    status: student.status,
-    attendedPeriods,
-    totalFee,
-    qrUrl,
-    attendanceLogs: logs,
-    paymentHistory: student.paymentHistory || []
-  });
 });
 
 // ==========================================
@@ -240,178 +229,194 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // ==========================================
-// 7. API ADMIN: LẤY DANH SÁCH HỌC SINH
+// 7. API ADMIN: LẤY DANH SÁCH HỌC SINH (DÙNG MONGODB)
 // ==========================================
-app.get('/api/students', authenticateAdmin, (req, res) => {
-  const students = readStudentsData();
-  const data = students.map(s => {
-    const logs = s.attendanceLogs || [];
-    const attendedPeriods = logs.filter(l => l.status === 'PRESENT').length;
-    const totalFee = Number(s.monthlyFee) || 0;
+app.get('/api/students', authenticateAdmin, async (req, res) => {
+  try {
+    const students = await Student.find().sort({ id: 1 });
+    const data = students.map(s => {
+      const logs = s.attendanceLogs || [];
+      const attendedPeriods = logs.filter(l => l.status === 'PRESENT').length;
+      const totalFee = Number(s.monthlyFee) || 0;
 
-    const params = new URLSearchParams({
-      amount: String(totalFee),
-      addInfo: `Hoc phi Thang ${s.month || '10/2026'} ${s.name} Lop ${s.grade}`,
-      accountName: BANK_CONFIG.accountName,
+      const params = new URLSearchParams({
+        amount: String(totalFee),
+        addInfo: `Hoc phi Thang ${s.month || '10/2026'} ${s.name} Lop ${s.grade}`,
+        accountName: BANK_CONFIG.accountName,
+      });
+      const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-compact2.png?${params.toString()}`;
+
+      return { 
+        ...s.toObject(), 
+        paymentHistory: s.paymentHistory || [],
+        attendedPeriods, 
+        totalFee, 
+        qrUrl 
+      };
     });
-    const qrUrl = `https://img.vietqr.io/image/${BANK_CONFIG.bankId}-${BANK_CONFIG.accountNo}-compact2.png?${params.toString()}`;
-
-    return { 
-      ...s, 
-      paymentHistory: s.paymentHistory || [],
-      attendedPeriods, 
-      totalFee, 
-      qrUrl 
-    };
-  });
-  res.json(data);
-});
-
-// ==========================================
-// 8. API ADMIN: THÊM HỌC SINH MỚI
-// ==========================================
-app.post('/api/students', authenticateAdmin, (req, res) => {
-  const { name, grade, monthlyFee, feePerPeriod, month, status } = req.body;
-  if (!name || !grade) {
-    return res.status(400).json({ error: 'Vui lòng điền đầy đủ tên và lớp.' });
+    res.json(data);
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi máy chủ khi lấy danh sách học sinh.' });
   }
-
-  const students = readStudentsData();
-  const newStudent = {
-    id: students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1,
-    name: name.trim(),
-    grade: String(grade).trim(),
-    feePerPeriod: Number(feePerPeriod) || Number(monthlyFee) || 350000,
-    monthlyFee: Number(monthlyFee) || 350000,
-    month: month || '10/2026',
-    status: status || 'UNPAID',
-    attendanceLogs: [],
-    paymentHistory: []
-  };
-
-  students.push(newStudent);
-  writeStudentsData(students);
-  res.status(201).json(newStudent);
 });
 
 // ==========================================
-// 9. API ADMIN: CẬP NHẬT THÔNG TIN HỌC SINH
+// 8. API ADMIN: THÊM HỌC SINH MỚI (DÙNG MONGODB)
 // ==========================================
-app.patch('/api/students/:id', authenticateAdmin, (req, res) => {
-  const { id } = req.params;
-  const { name, grade, monthlyFee, feePerPeriod, month, status } = req.body;
+app.post('/api/students', authenticateAdmin, async (req, res) => {
+  try {
+    const { name, grade, monthlyFee, feePerPeriod, month, status } = req.body;
+    if (!name || !grade) {
+      return res.status(400).json({ error: 'Vui lòng điền đầy đủ tên và lớp.' });
+    }
 
-  const students = readStudentsData();
-  const student = students.find(s => s.id === parseInt(id));
+    const maxStudent = await Student.findOne().sort({ id: -1 });
+    const nextId = maxStudent ? maxStudent.id + 1 : 1;
 
-  if (!student) return res.status(404).json({ error: 'Không tìm thấy học sinh.' });
+    const newStudent = new Student({
+      id: nextId,
+      name: name.trim(),
+      grade: String(grade).trim(),
+      feePerPeriod: Number(feePerPeriod) || Number(monthlyFee) || 350000,
+      monthlyFee: Number(monthlyFee) || 350000,
+      month: month || '10/2026',
+      status: status || 'UNPAID',
+      attendanceLogs: [],
+      paymentHistory: []
+    });
 
-  if (name !== undefined) student.name = name.trim();
-  if (grade !== undefined) student.grade = String(grade).trim();
-  if (feePerPeriod !== undefined) student.feePerPeriod = Math.max(0, Number(feePerPeriod));
-  if (monthlyFee !== undefined) student.monthlyFee = Math.max(0, Number(monthlyFee));
-  if (month !== undefined) student.month = String(month).trim();
-  if (status !== undefined) student.status = status;
-
-  writeStudentsData(students);
-  res.json(student);
-});
-
-// ==========================================
-// 10. API ADMIN: XÓA HỌC SINH
-// ==========================================
-app.delete('/api/students/:id', authenticateAdmin, (req, res) => {
-  const { id } = req.params;
-  let students = readStudentsData();
-  const index = students.findIndex(s => s.id === parseInt(id));
-
-  if (index === -1) return res.status(404).json({ error: 'Không tìm thấy học sinh cần xóa.' });
-
-  const deletedStudent = students.splice(index, 1)[0];
-  writeStudentsData(students);
-  res.json({ message: 'Đã xóa học sinh thành công.', student: deletedStudent });
-});
-
-// ==========================================
-// 11. API ADMIN: THAO TÁC HÀNG LOẠT
-// ==========================================
-app.post('/api/students/batch', authenticateAdmin, (req, res) => {
-  const { ids, action, status } = req.body;
-  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Danh sách ID không hợp lệ.' });
-
-  let students = readStudentsData();
-  if (action === 'DELETE') {
-    students = students.filter(s => !ids.includes(s.id));
-  } else if (action === 'UPDATE_STATUS') {
-    students = students.map(s => ids.includes(s.id) ? { ...s, status: status || 'PAID' } : s);
+    await newStudent.save();
+    res.status(201).json(newStudent);
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi khi thêm học sinh mới.' });
   }
-
-  writeStudentsData(students);
-  res.json({ message: 'Xử lý hàng loạt thành công.', totalAffected: ids.length });
 });
 
 // ==========================================
-// 12. API ADMIN: ĐIỂM DANH THEO LỚP & NGÀY
+// 9. API ADMIN: CẬP NHẬT THÔNG TIN HỌC SINH (DÙNG MONGODB)
 // ==========================================
-app.post('/api/attendance/batch', authenticateAdmin, (req, res) => {
-  const { date, records, note } = req.body;
-  if (!date || !Array.isArray(records)) return res.status(400).json({ error: 'Dữ liệu điểm danh không hợp lệ.' });
+app.patch('/api/students/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, grade, monthlyFee, feePerPeriod, month, status } = req.body;
 
-  let students = readStudentsData();
-  records.forEach(rec => {
-    const student = students.find(s => s.id === rec.studentId);
-    if (student) {
-      if (!student.attendanceLogs) student.attendanceLogs = [];
-      const existingIdx = student.attendanceLogs.findIndex(l => l.date === date);
-      const logItem = { date, status: rec.status, note: note || 'Buổi học định kỳ' };
-      
-      if (existingIdx >= 0) {
-        student.attendanceLogs[existingIdx] = logItem;
-      } else {
-        student.attendanceLogs.push(logItem);
+    const student = await Student.findOne({ id: Number(id) });
+    if (!student) return res.status(404).json({ error: 'Không tìm thấy học sinh.' });
+
+    if (name !== undefined) student.name = name.trim();
+    if (grade !== undefined) student.grade = String(grade).trim();
+    if (feePerPeriod !== undefined) student.feePerPeriod = Math.max(0, Number(feePerPeriod));
+    if (monthlyFee !== undefined) student.monthlyFee = Math.max(0, Number(monthlyFee));
+    if (month !== undefined) student.month = String(month).trim();
+    if (status !== undefined) student.status = status;
+
+    await student.save();
+    res.json(student);
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi cập nhật học sinh.' });
+  }
+});
+
+// ==========================================
+// 10. API ADMIN: XÓA HỌC SINH (DÙNG MONGODB)
+// ==========================================
+app.delete('/api/students/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deletedStudent = await Student.findOneAndDelete({ id: Number(id) });
+
+    if (!deletedStudent) return res.status(404).json({ error: 'Không tìm thấy học sinh cần xóa.' });
+
+    res.json({ message: 'Đã xóa học sinh thành công.', student: deletedStudent });
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi khi xóa học sinh.' });
+  }
+});
+
+// ==========================================
+// 11. API ADMIN: THAO TÁC HÀNG LOẠT (DÙNG MONGODB)
+// ==========================================
+app.post('/api/students/batch', authenticateAdmin, async (req, res) => {
+  try {
+    const { ids, action, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'Danh sách ID không hợp lệ.' });
+
+    if (action === 'DELETE') {
+      await Student.deleteMany({ id: { $in: ids } });
+    } else if (action === 'UPDATE_STATUS') {
+      await Student.updateMany({ id: { $in: ids } }, { $set: { status: status || 'PAID' } });
+    }
+
+    res.json({ message: 'Xử lý hàng loạt thành công.', totalAffected: ids.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi xử lý hàng loạt.' });
+  }
+});
+
+// ==========================================
+// 12. API ADMIN: ĐIỂM DANH THEO LỚP & NGÀY (DÙNG MONGODB)
+// ==========================================
+app.post('/api/attendance/batch', authenticateAdmin, async (req, res) => {
+  try {
+    const { date, records, note } = req.body;
+    if (!date || !Array.isArray(records)) return res.status(400).json({ error: 'Dữ liệu điểm danh không hợp lệ.' });
+
+    for (const rec of records) {
+      const student = await Student.findOne({ id: rec.studentId });
+      if (student) {
+        if (!student.attendanceLogs) student.attendanceLogs = [];
+        const existingIdx = student.attendanceLogs.findIndex(l => l.date === date);
+        const logItem = { date, status: rec.status, note: note || 'Buổi học định kỳ' };
+        
+        if (existingIdx >= 0) {
+          student.attendanceLogs[existingIdx] = logItem;
+        } else {
+          student.attendanceLogs.push(logItem);
+        }
+        
+        student.markModified('attendanceLogs');
+        await student.save();
       }
     }
-  });
 
-  writeStudentsData(students);
-  res.json({ message: 'Lưu điểm danh thành công.', total: records.length });
+    res.json({ message: 'Lưu điểm danh thành công.', total: records.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Lỗi khi lưu điểm danh.' });
+  }
 });
 
 // ==========================================
-// 13. API ADMIN: ROLLOVER (CHUYỂN THÁNG HỌC PHÍ MỚI)
+// 13. API ADMIN: ROLLOVER (CHUYỂN THÁNG HỌC PHÍ MỚI - DÙNG MONGODB)
 // ==========================================
-app.post('/api/students/rollover', authenticateAdmin, (req, res) => {
+app.post('/api/students/rollover', authenticateAdmin, async (req, res) => {
   try {
     const { targetMonth } = req.body;
     if (!targetMonth) {
       return res.status(400).json({ error: 'Vui lòng cung cấp tháng mục tiêu (VD: 11/2026).' });
     }
 
-    const students = readStudentsData();
+    const students = await Student.find();
 
-    const updatedStudents = students.map(student => {
+    for (const student of students) {
       const history = student.paymentHistory || [];
-
       history.push({
         month: student.month || 'Không xác định',
         monthlyFee: student.monthlyFee,
         status: student.status,
-archivedAt: new Date().toISOString()
+        archivedAt: new Date().toISOString()
       });
 
-      return {
-        ...student,
-        month: String(targetMonth).trim(),
-        status: 'UNPAID',
-        paymentHistory: history
-      };
-    });
-
-    writeStudentsData(updatedStudents);
+      student.month = String(targetMonth).trim();
+      student.status = 'UNPAID';
+      student.paymentHistory = history;
+      student.markModified('paymentHistory');
+      
+      await student.save();
+    }
 
     res.json({
-      message: `Đã chuyển thành công ${updatedStudents.length} học sinh sang tháng ${targetMonth}.`,
-      count: updatedStudents.length,
+      message: `Đã chuyển thành công ${students.length} học sinh sang tháng ${targetMonth}.`,
+      count: students.length,
       targetMonth
     });
   } catch (error) {
@@ -423,8 +428,6 @@ archivedAt: new Date().toISOString()
 // ==========================================
 // 14. EDUFEED API ENDPOINTS (DÙNG MONGODB ATLAS)
 // ==========================================
-
-// Lấy danh sách bài viết từ MongoDB
 app.get('/api/posts', async (req, res) => {
   try {
     const { grade } = req.query;
@@ -432,16 +435,13 @@ app.get('/api/posts', async (req, res) => {
     const posts = await Post.find(query).sort({ createdAt: -1 });
     res.json({ success: true, data: posts });
   } catch (error) {
-    console.error('Lỗi lấy danh sách bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy danh sách bài viết.' });
   }
 });
 
-// Đăng bài viết mới vào MongoDB
 app.post('/api/posts', authenticateAdmin, async (req, res) => {
   try {
     const { title, content, grade, attachments } = req.body;
-
     if (!title || !content || !grade) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ tiêu đề, nội dung và khối lớp.' });
     }
@@ -459,64 +459,47 @@ app.post('/api/posts', authenticateAdmin, async (req, res) => {
     await newPost.save();
     res.status(201).json({ success: true, data: newPost, message: 'Đăng bài viết thành công!' });
   } catch (error) {
-    console.error('Lỗi đăng bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi đăng bài viết.' });
   }
 });
 
-// Xóa bài viết và toàn bộ comment thuộc bài viết đó trong MongoDB
 app.delete('/api/posts/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const deletedPost = await Post.findOneAndDelete({ id: String(id) });
+    if (!deletedPost) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
 
-    if (!deletedPost) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
-    }
-
-    // Xóa luôn toàn bộ comment của bài viết này
     await Comment.deleteMany({ postId: String(id) });
-
     res.json({ success: true, message: 'Đã xóa bài viết và các bình luận liên quan thành công.' });
   } catch (error) {
-    console.error('Lỗi xóa bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi xóa bài viết.' });
   }
 });
 
-// Thả tim bài viết trong MongoDB
 app.post('/api/posts/:id/like', async (req, res) => {
   try {
     const { id } = req.params;
     const post = await Post.findOne({ id: String(id) });
-
-    if (!post) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
-    }
+    if (!post) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
 
     post.likes = (post.likes || 0) + 1;
     await post.save();
-
     res.json({ success: true, data: post });
   } catch (error) {
-    console.error('Lỗi thả tim:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi thả tim.' });
   }
 });
 
-// Lấy danh sách bình luận của 1 bài viết từ MongoDB
 app.get('/api/posts/:id/comments', async (req, res) => {
   try {
     const { id } = req.params;
     const comments = await Comment.find({ postId: String(id) }).sort({ createdAt: 1 });
     res.json({ success: true, data: comments });
   } catch (error) {
-    console.error('Lỗi lấy bình luận:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy bình luận.' });
   }
 });
 
-// Gửi bình luận mới vào MongoDB
 app.post('/api/posts/:id/comments', async (req, res) => {
   try {
     const { id } = req.params;
@@ -524,10 +507,6 @@ app.post('/api/posts/:id/comments', async (req, res) => {
 
     if (!text || text.trim() === '') {
       return res.status(400).json({ success: false, message: 'Nội dung bình luận không được để trống.' });
-    }
-
-    if (text.length > 500) {
-      return res.status(400).json({ success: false, message: 'Bình luận vượt quá giới hạn 500 ký tự.' });
     }
 
     const newComment = new Comment({
@@ -542,7 +521,6 @@ app.post('/api/posts/:id/comments', async (req, res) => {
     await newComment.save();
     res.status(201).json({ success: true, data: newComment });
   } catch (error) {
-    console.error('Lỗi gửi bình luận:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi gửi bình luận.' });
   }
 });
