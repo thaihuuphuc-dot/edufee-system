@@ -16,11 +16,11 @@ const MONGODB_URI = process.env.MONGODB_URI || "mongodb://HuuPhuc:Huuphuc1511@cl
 mongoose.connect(MONGODB_URI)
   .then(() => {
     console.log('✅ Đã kết nối thành công với MongoDB Atlas Cloud!');
-    seedInitialStudents(); // Kiểm tra và sync dữ liệu ban đầu từ students.json nếu DB trống
+    seedInitialStudents();
   })
   .catch(err => console.error('❌ Lỗi kết nối MongoDB:', err));
 
-// 1. Schema Học sinh (Students) - MỚI
+// 1. Schema Học sinh (Students)
 const studentSchema = new mongoose.Schema({
   id: { type: Number, required: true, unique: true },
   name: { type: String, required: true },
@@ -105,7 +105,7 @@ const BANK_CONFIG = {
 };
 
 // ==========================================
-// 4. HÀM TỰ ĐỘNG SYNC DỮ LIỆU CŨ LÊN MONGODB (Chạy 1 lần khi DB trống)
+// 4. HÀM TỰ ĐỘNG SYNC DỮ LIỆU CŨ LÊN MONGODB
 // ==========================================
 async function seedInitialStudents() {
   try {
@@ -229,7 +229,7 @@ app.post('/api/auth/login', (req, res) => {
 });
 
 // ==========================================
-// 7. API ADMIN: LẤY DANH SÁCH HỌC SINH (DÙNG MONGODB)
+// 7. API ADMIN: LẤY DANH SÁCH HỌC SINH
 // ==========================================
 app.get('/api/students', authenticateAdmin, async (req, res) => {
   try {
@@ -261,7 +261,7 @@ app.get('/api/students', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 8. API ADMIN: THÊM HỌC SINH MỚI (DÙNG MONGODB)
+// 8. API ADMIN: THÊM HỌC SINH MỚI
 // ==========================================
 app.post('/api/students', authenticateAdmin, async (req, res) => {
   try {
@@ -293,7 +293,7 @@ app.post('/api/students', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 9. API ADMIN: CẬP NHẬT THÔNG TIN HỌC SINH (DÙNG MONGODB)
+// 9. API ADMIN: CẬP NHẬT THÔNG TIN HỌC SINH
 // ==========================================
 app.patch('/api/students/:id', authenticateAdmin, async (req, res) => {
   try {
@@ -318,7 +318,7 @@ app.patch('/api/students/:id', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 10. API ADMIN: XÓA HỌC SINH (DÙNG MONGODB)
+// 10. API ADMIN: XÓA HỌC SINH
 // ==========================================
 app.delete('/api/students/:id', authenticateAdmin, async (req, res) => {
   try {
@@ -333,31 +333,35 @@ app.delete('/api/students/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
-
 // ==========================================
-// API XÓA BÌNH LUẬN (CHỈ DÀNH CHO ADMIN)
+// API XÓA BÌNH LUẬN (CHỈ DÀNH CHO ADMIN - ĐÃ ĐỒNG BỘ ID)
 // ==========================================
 app.delete('/api/comments/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Tìm và xóa bình luận từ MongoDB Atlas
-    const deletedComment = await Comment.findByIdAndDelete(id);
-
+    // Tìm và xóa linh hoạt theo _id (Mongoose) hoặc id (custom String)
+    let deletedComment = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      deletedComment = await Comment.findByIdAndDelete(id);
+    }
     if (!deletedComment) {
-      return res.status(404).json({ message: 'Không tìm thấy bình luận cần xóa.' });
+      deletedComment = await Comment.findOneAndDelete({ id: String(id) });
     }
 
-    res.json({ message: 'Đã xóa bình luận thành công.', commentId: id });
+    if (!deletedComment) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bình luận cần xóa.' });
+    }
+
+    res.json({ success: true, message: 'Đã xóa bình luận thành công.', commentId: id });
   } catch (error) {
     console.error('Lỗi khi xóa bình luận:', error);
-    res.status(500).json({ message: 'Lỗi server khi xử lý xóa bình luận.' });
+    res.status(500).json({ success: false, message: 'Lỗi server khi xử lý xóa bình luận.' });
   }
 });
 
-
 // ==========================================
-// 11. API ADMIN: THAO TÁC HÀNG LOẠT (DÙNG MONGODB)
+// 11. API ADMIN: THAO TÁC HÀNG LOẠT
 // ==========================================
 app.post('/api/students/batch', authenticateAdmin, async (req, res) => {
   try {
@@ -377,7 +381,7 @@ app.post('/api/students/batch', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 12. API ADMIN: ĐIỂM DANH THEO LỚP & NGÀY (DÙNG MONGODB)
+// 12. API ADMIN: ĐIỂM DANH THEO LỚP & NGÀY
 // ==========================================
 app.post('/api/attendance/batch', authenticateAdmin, async (req, res) => {
   try {
@@ -409,7 +413,7 @@ app.post('/api/attendance/batch', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 13. API ADMIN: ROLLOVER (CHUYỂN THÁNG HỌC PHÍ MỚI - DÙNG MONGODB)
+// 13. API ADMIN: ROLLOVER CHUYỂN THÁNG HỌC PHÍ
 // ==========================================
 app.post('/api/students/rollover', authenticateAdmin, async (req, res) => {
   try {
@@ -449,15 +453,30 @@ app.post('/api/students/rollover', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 14. EDUFEED API ENDPOINTS (DÙNG MONGODB ATLAS)
+// 14. EDUFEED API ENDPOINTS (ĐÃ BỔ SUNG LẤY KÈM COMMENTS)
 // ==========================================
 app.get('/api/posts', async (req, res) => {
   try {
     const { grade } = req.query;
     const query = (grade && grade !== 'ALL') ? { grade: String(grade) } : {};
-    const posts = await Post.find(query).sort({ createdAt: -1 });
-    res.json({ success: true, data: posts });
+    const posts = await Post.find(query).sort({ createdAt: -1 }).lean();
+
+    // Lấy danh sách bình luận đính kèm cho từng bài viết
+    const postsWithComments = await Promise.all(
+      posts.map(async (post) => {
+        const comments = await Comment.find({ 
+          $or: [
+            { postId: String(post.id) },
+            { postId: String(post._id) }
+          ]
+        }).sort({ createdAt: 1 });
+        return { ...post, comments };
+      })
+    );
+
+    res.json({ success: true, data: postsWithComments });
   } catch (error) {
+    console.error('Lỗi lấy bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy danh sách bài viết.' });
   }
 });
@@ -489,7 +508,14 @@ app.post('/api/posts', authenticateAdmin, async (req, res) => {
 app.delete('/api/posts/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedPost = await Post.findOneAndDelete({ id: String(id) });
+    let deletedPost = null;
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      deletedPost = await Post.findByIdAndDelete(id);
+    }
+    if (!deletedPost) {
+      deletedPost = await Post.findOneAndDelete({ id: String(id) });
+    }
+
     if (!deletedPost) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
 
     await Comment.deleteMany({ postId: String(id) });
@@ -516,7 +542,9 @@ app.post('/api/posts/:id/like', async (req, res) => {
 app.get('/api/posts/:id/comments', async (req, res) => {
   try {
     const { id } = req.params;
-    const comments = await Comment.find({ postId: String(id) }).sort({ createdAt: 1 });
+    const comments = await Comment.find({ 
+      $or: [{ postId: String(id) }] 
+    }).sort({ createdAt: 1 });
     res.json({ success: true, data: comments });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy bình luận.' });
