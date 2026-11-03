@@ -337,7 +337,7 @@ app.delete('/api/students/:id', authenticateAdmin, async (req, res) => {
 // ==========================================
 // API XÓA BÌNH LUẬN (CHỈ DÀNH CHO ADMIN)
 // ==========================================
-app.delete('/api/comments/:id', authenticateAdminToken, async (req, res) => {
+app.delete('/api/comments/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
