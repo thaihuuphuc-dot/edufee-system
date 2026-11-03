@@ -333,6 +333,29 @@ app.delete('/api/students/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
+
+// ==========================================
+// API XÓA BÌNH LUẬN (CHỈ DÀNH CHO ADMIN)
+// ==========================================
+app.delete('/api/comments/:id', authenticateAdminToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Tìm và xóa bình luận từ MongoDB Atlas
+    const deletedComment = await Comment.findByIdAndDelete(id);
+
+    if (!deletedComment) {
+      return res.status(404).json({ message: 'Không tìm thấy bình luận cần xóa.' });
+    }
+
+    res.json({ message: 'Đã xóa bình luận thành công.', commentId: id });
+  } catch (error) {
+    console.error('Lỗi khi xóa bình luận:', error);
+    res.status(500).json({ message: 'Lỗi server khi xử lý xóa bình luận.' });
+  }
+});
+
+
 // ==========================================
 // 11. API ADMIN: THAO TÁC HÀNG LOẠT (DÙNG MONGODB)
 // ==========================================

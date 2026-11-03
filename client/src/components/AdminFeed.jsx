@@ -57,7 +57,7 @@ const AdminFeed = ({ adminToken }) => {
       }
     } catch (err) {
       alert('Không thể kết nối máy chủ để upload file.');
-    } finally {
+    }  finally {
       setUploading(false);
       e.target.value = ''; // Reset ô chọn file
     }
@@ -118,21 +118,56 @@ const AdminFeed = ({ adminToken }) => {
       });
       const result = await res.json();
       if (result.success) {
-        setPosts(prev => prev.filter(p => p.id !== postId));
+        setPosts(prev => prev.filter(p => (p._id || p.id) !== postId));
       }
     } catch (err) {
       alert('Lỗi máy chủ khi xóa bài.');
     }
   };
 
-  return (
-  /* Khung chứa ngoài cùng cho trang Admin */
-  <div className="admin-feed-container space-y-8 max-w-6xl mx-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-950/80 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-colors duration-200">
-    <h2 className="text-2xl font-bold border-b border-slate-200 dark:border-slate-800 pb-3 text-slate-900 dark:text-slate-100">
-      ✍️ Quản Lý Bảng Tin & Bài Giảng Math Feed
-    </h2>
+  // Hàm xử lý gọi API xóa bình luận (Đã sửa truyền đúng adminToken)
+  const handleDeleteComment = async (commentId, postId) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa bình luận này không?")) return;
 
-    {/* Nội dung Form & Preview giữ nguyên bg-white dark:bg-slate-900 */}
+    try {
+      const res = await fetch(`${API_BASE}/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${adminToken}`
+        }
+      });
+
+      if (res.ok) {
+        // Cập nhật state posts linh hoạt khớp cả MongoDB _id lẫn JSON id
+        setPosts(prevPosts =>
+          prevPosts.map(post => {
+            const currentPostId = post._id || post.id;
+            if (currentPostId === postId) {
+              return {
+                ...post,
+                comments: (post.comments || []).filter(c => (c._id || c.id) !== commentId)
+              };
+            }
+            return post;
+          })
+        );
+      } else {
+        const data = await res.json();
+        alert(data.message || "Xóa bình luận thất bại.");
+      }
+    } catch (err) {
+      console.error("Lỗi xóa bình luận:", err);
+      alert("Đã xảy ra lỗi kết nối máy chủ.");
+    }
+  };
+
+  return (
+    /* Khung chứa ngoài cùng cho trang Admin */
+    <div className="admin-feed-container space-y-8 max-w-6xl mx-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-950/80 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-colors duration-200">
+      <h2 className="text-2xl font-bold border-b border-slate-200 dark:border-slate-800 pb-3 text-slate-900 dark:text-slate-100">
+        ✍️ Quản Lý Bảng Tin & Bài Giảng Math Feed
+      </h2>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Form soạn bài */}
@@ -235,7 +270,6 @@ const AdminFeed = ({ adminToken }) => {
                 <span className="text-xs text-amber-600 dark:text-amber-400 font-bold block">📁 Xem trước phương tiện đính kèm:</span>
                 {attachments.map((att, i) => (
                   <div key={i} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                    
                     {/* Xem trước Ảnh */}
                     {att.type.startsWith('image/') && (
                       <div className="space-y-1">
@@ -266,7 +300,6 @@ const AdminFeed = ({ adminToken }) => {
                         </div>
                       </div>
                     )}
-
                   </div>
                 ))}
               </div>
@@ -275,30 +308,76 @@ const AdminFeed = ({ adminToken }) => {
         </div>
       </div>
 
-      {/* Danh sách bài viết đã xuất bản */}
+      {/* Danh sách bài viết đã xuất bản & Bình luận */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-4 shadow-sm">
         <h3 className="text-lg font-bold text-slate-800 dark:text-slate-200">📋 Các bài viết đã xuất bản</h3>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {posts.length === 0 ? (
             <div className="text-xs text-slate-400 italic">Chưa có bài viết nào được xuất bản.</div>
           ) : (
-            posts.map((post) => (
-              <div key={post.id} className="flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 text-sm">
-                <div>
-                  <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-semibold mr-2 border border-blue-200 dark:border-blue-800">
-                    Lớp {post.grade}
-                  </span>
-                  <span className="font-semibold text-slate-800 dark:text-slate-100">{post.title}</span>
-                  {post.attachments?.length > 0 && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-2">📎 ({post.attachments.length} file)</span>}
+            posts.map((post) => {
+              const postId = post._id || post.id;
+              return (
+                <div key={postId} className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 text-sm space-y-3">
+                  
+                  {/* Thông tin Bài viết & Nút Xóa bài */}
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-semibold mr-2 border border-blue-200 dark:border-blue-800">
+                        Lớp {post.grade}
+                      </span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">{post.title}</span>
+                      {post.attachments?.length > 0 && (
+                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-2">
+                          📎 ({post.attachments.length} file)
+                        </span>
+                      )}
+                    </div>
+                    <button 
+                      onClick={() => handleDeletePost(postId)} 
+                      className="px-3 py-1 bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/60 rounded-lg text-xs font-semibold transition border border-rose-200 dark:border-rose-800/60 cursor-pointer"
+                    >
+                      🗑️ Xóa Bài
+                    </button>
+                  </div>
+
+                  {/* Danh sách Bình luận & Nút Xóa Bình luận */}
+                  {post.comments && post.comments.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 space-y-1.5 pl-2">
+                      <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                        Bình luận ({post.comments.length})
+                      </p>
+                      {post.comments.map((comment) => {
+                        const commentId = comment._id || comment.id;
+                        return (
+                          <div 
+                            key={commentId} 
+                            className="flex justify-between items-center bg-white dark:bg-slate-900/60 p-2 rounded-lg border border-slate-100 dark:border-slate-800 text-xs"
+                          >
+                            <div className="pr-2">
+                              <span className="font-bold text-slate-700 dark:text-slate-300">
+                                {comment.authorName || comment.author || 'Học sinh'}:
+                              </span>
+                              <span className="ml-1.5 text-slate-600 dark:text-slate-400">
+                                {comment.content || comment.text}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteComment(commentId, postId)}
+                              className="px-2 py-0.5 bg-red-50 dark:bg-red-950/30 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded font-medium transition cursor-pointer flex-shrink-0"
+                              title="Xóa bình luận này"
+                            >
+                              Xóa
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
                 </div>
-                <button 
-                  onClick={() => handleDeletePost(post.id)} 
-                  className="px-3 py-1 bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/60 rounded-lg text-xs font-semibold transition border border-rose-200 dark:border-rose-800/60 cursor-pointer"
-                >
-                  🗑️ Xóa
-                </button>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
