@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MathText from './MathText';
+import GeoGebraEmbed from './GeoGebraEmbed';
+import QuizInteractive from './QuizInteractive';
 
 const EduFeed = () => {
   const [posts, setPosts] = useState([]);
@@ -114,7 +116,7 @@ const PostCard = ({ post, apiBase, isLiked, onLike }) => {
     if (!showComments && comments.length === 0) {
       setLoadingComments(true);
       try {
-        const res = await fetch(`${apiBase}/posts/${post.id}/comments`);
+        const res = await fetch(`${apiBase}/posts/${post.id || post._id}/comments`);
         const result = await res.json();
         if (result.success) setComments(result.data);
       } catch (err) {
@@ -131,7 +133,7 @@ const PostCard = ({ post, apiBase, isLiked, onLike }) => {
     if (!commentText.trim()) return;
 
     try {
-      const res = await fetch(`${apiBase}/posts/${post.id}/comments`, {
+      const res = await fetch(`${apiBase}/posts/${post.id || post._id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ author: authorName, text: commentText })
@@ -252,6 +254,10 @@ const PostCard = ({ post, apiBase, isLiked, onLike }) => {
         </div>
       )}
 
+      {/* 🔽 MÔ HÌNH GEOGEBRA & BÀI TẬP TƯƠNG TÁC 🔽 */}
+      {post.geogebraId && <GeoGebraEmbed materialId={post.geogebraId} />}
+      {post.quizzes && post.quizzes.length > 0 && <QuizInteractive quizzes={post.quizzes} />}
+
       {/* Thanh tác vụ Bình luận */}
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex justify-between items-center">
         <button
@@ -278,7 +284,7 @@ const PostCard = ({ post, apiBase, isLiked, onLike }) => {
               ) : (
                 comments.map((c) => (
                   <div
-                    key={c.id}
+                    key={c.id || c._id}
                     className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-3 text-xs border border-slate-200/60 dark:border-slate-700/50"
                   >
                     <div className="flex justify-between font-semibold mb-1">

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MathText from './MathText';
+import GeoGebraEmbed from './GeoGebraEmbed';
+import QuizInteractive from './QuizInteractive';
 
 const AdminFeed = ({ adminToken }) => {
   const [posts, setPosts] = useState([]);
@@ -10,6 +12,10 @@ const AdminFeed = ({ adminToken }) => {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+
+  // 🔽 MỚI: State GeoGebra Material ID & Danh sách Quizzes
+  const [geogebraId, setGeogebraId] = useState('');
+  const [quizzes, setQuizzes] = useState([]);
 
   // Đường dẫn tương đối '/api' chuẩn cho cả Dev Proxy lẫn Express Production
   const API_BASE = '/api';
@@ -27,6 +33,43 @@ const AdminFeed = ({ adminToken }) => {
   useEffect(() => {
     fetchPosts();
   }, []);
+
+  // 🔽 MỚI: Thao tác Quizzes tương tác
+  const handleAddQuiz = () => {
+    setQuizzes(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        type: 'multiple_choice',
+        question: '',
+        options: ['', '', '', ''],
+        correctAnswer: 'A',
+        explanation: ''
+      }
+    ]);
+  };
+
+  const handleRemoveQuiz = (index) => {
+    setQuizzes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleQuizChange = (index, field, value) => {
+    setQuizzes(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleOptionChange = (quizIdx, optIdx, value) => {
+    setQuizzes(prev => {
+      const updated = [...prev];
+      const updatedOptions = [...updated[quizIdx].options];
+      updatedOptions[optIdx] = value;
+      updated[quizIdx] = { ...updated[quizIdx], options: updatedOptions };
+      return updated;
+    });
+  };
 
   // Xử lý Upload File trực tiếp lên Backend
   const handleFileUpload = async (e) => {
@@ -57,7 +100,7 @@ const AdminFeed = ({ adminToken }) => {
       }
     } catch (err) {
       alert('Không thể kết nối máy chủ để upload file.');
-    }  finally {
+    } finally {
       setUploading(false);
       e.target.value = ''; // Reset ô chọn file
     }
@@ -86,7 +129,14 @@ const AdminFeed = ({ adminToken }) => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${adminToken}`
         },
-        body: JSON.stringify({ title, grade, content, attachments })
+        body: JSON.stringify({ 
+          title, 
+          grade, 
+          content, 
+          attachments,
+          geogebraId: geogebraId.trim(),
+          quizzes 
+        })
       });
 
       const result = await res.json();
@@ -96,6 +146,8 @@ const AdminFeed = ({ adminToken }) => {
         setTitle('');
         setContent('');
         setAttachments([]);
+        setGeogebraId('');
+        setQuizzes([]);
         fetchPosts(); // Tải lại danh sách bài viết
       } else {
         setMessage({ type: 'error', text: result.message || result.error || 'Phiên đăng nhập hết hạn hoặc không đủ quyền.' });
@@ -125,7 +177,7 @@ const AdminFeed = ({ adminToken }) => {
     }
   };
 
-  // Hàm xử lý gọi API xóa bình luận (Đã sửa truyền đúng adminToken)
+  // Hàm xử lý gọi API xóa bình luận
   const handleDeleteComment = async (commentId, postId) => {
     if (!window.confirm("Bạn có chắc chắn muốn xóa bình luận này không?")) return;
 
@@ -139,7 +191,6 @@ const AdminFeed = ({ adminToken }) => {
       });
 
       if (res.ok) {
-        // Cập nhật state posts linh hoạt khớp cả MongoDB _id lẫn JSON id
         setPosts(prevPosts =>
           prevPosts.map(post => {
             const currentPostId = post._id || post.id;
@@ -163,7 +214,6 @@ const AdminFeed = ({ adminToken }) => {
   };
 
   return (
-    /* Khung chứa ngoài cùng cho trang Admin */
     <div className="admin-feed-container space-y-8 max-w-6xl mx-auto p-4 md:p-6 bg-slate-50 dark:bg-slate-950/80 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm transition-colors duration-200">
       <h2 className="text-2xl font-bold border-b border-slate-200 dark:border-slate-800 pb-3 text-slate-900 dark:text-slate-100">
         ✍️ Quản Lý Bảng Tin & Bài Giảng Math Feed
@@ -209,11 +259,25 @@ const AdminFeed = ({ adminToken }) => {
           <div className="space-y-1">
             <label className="text-xs text-slate-600 dark:text-slate-400 font-semibold">Nội dung (Công thức KaTeX)</label>
             <textarea
-              rows={6}
+              rows={5}
               placeholder="Nhập nội dung... Dùng $f(x) = x^2$ hoặc $$ \int_0^1 x dx $$"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-400 dark:placeholder-slate-500"
+            />
+          </div>
+
+          {/* 🔽 MỚI: NHẬP GEOGEBRA MATERIAL ID */}
+          <div className="space-y-1 border-t border-slate-100 dark:border-slate-800 pt-3">
+            <label className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+              📐 GeoGebra Material ID / Link (Tùy chọn)
+            </label>
+            <input
+              type="text"
+              placeholder="VD: m7v2wz8x hoặc https://www.geogebra.org/m/m7v2wz8x"
+              value={geogebraId}
+              onChange={(e) => setGeogebraId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
 
@@ -229,7 +293,6 @@ const AdminFeed = ({ adminToken }) => {
             />
             {uploading && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium block">⏳ Đang tải file lên máy chủ...</span>}
 
-            {/* Danh sách file đã tải lên chuẩn bị đăng */}
             {attachments.length > 0 && (
               <div className="space-y-1 mt-2">
                 {attachments.map((file, idx) => (
@@ -244,6 +307,93 @@ const AdminFeed = ({ adminToken }) => {
             )}
           </div>
 
+          {/* 🔽 MỚI: BỘ SOẠN THẢO KHO BÀI TẬP INTERACTIVE (QUIZZES) */}
+          <div className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-3">
+            <div className="flex justify-between items-center">
+              <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                ❓ Kho Câu Hỏi Luyện Tập ({quizzes.length} câu)
+              </label>
+              <button
+                type="button"
+                onClick={handleAddQuiz}
+                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition"
+              >
+                + Thêm câu hỏi
+              </button>
+            </div>
+
+            {quizzes.map((quiz, qIdx) => (
+              <div key={quiz.id || qIdx} className="p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-indigo-500">Câu #{qIdx + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveQuiz(qIdx)}
+                    className="text-rose-500 hover:text-rose-700 font-semibold"
+                  >
+                    Xóa câu này
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nội dung câu hỏi..."
+                    value={quiz.question}
+                    onChange={(e) => handleQuizChange(qIdx, 'question', e.target.value)}
+                    className="sm:col-span-2 px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100"
+                  />
+                  <select
+                    value={quiz.type}
+                    onChange={(e) => handleQuizChange(qIdx, 'type', e.target.value)}
+                    className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-slate-100 cursor-pointer"
+                  >
+                    <option value="multiple_choice">Trắc nghiệm</option>
+                    <option value="short_answer">Điền đáp số</option>
+                  </select>
+                </div>
+
+                {quiz.type === 'multiple_choice' && (
+                  <div className="grid grid-cols-2 gap-1.5 pt-1">
+                    {['A', 'B', 'C', 'D'].map((lbl, oIdx) => (
+                      <div key={oIdx} className="flex items-center gap-1">
+                        <span className="font-bold text-slate-500 w-3">{lbl}.</span>
+                        <input
+                          type="text"
+                          placeholder={`Lựa chọn ${lbl}`}
+                          value={quiz.options[oIdx] || ''}
+                          onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)}
+                          className="w-full px-2 py-1 rounded bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px]"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                  <div>
+                    <input
+                      type="text"
+                      placeholder={quiz.type === 'multiple_choice' ? 'Đáp án đúng (A/B/C/D)' : 'Đáp số đúng'}
+                      value={quiz.correctAnswer}
+                      onChange={(e) => handleQuizChange(qIdx, 'correctAnswer', e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 font-bold"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      placeholder="Lời giải chi tiết (tùy chọn)..."
+                      value={quiz.explanation}
+                      onChange={(e) => handleQuizChange(qIdx, 'explanation', e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <button
             type="submit"
             disabled={submitting}
@@ -256,13 +406,16 @@ const AdminFeed = ({ adminToken }) => {
         {/* Cột Xem trước Live Preview */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 space-y-3 flex flex-col shadow-sm">
           <h3 className="text-lg font-bold text-emerald-600 dark:text-emerald-400 border-b border-slate-100 dark:border-slate-800 pb-2">
-            👁️ Live KaTeX & Media Preview
+            👁️ Live KaTeX, GeoGebra & Quiz Preview
           </h3>
-          <div className="flex-1 bg-slate-50 dark:bg-slate-950/60 rounded-xl p-4 border border-slate-200 dark:border-slate-800 overflow-y-auto max-h-[550px] space-y-3">
+          <div className="flex-1 bg-slate-50 dark:bg-slate-950/60 rounded-xl p-4 border border-slate-200 dark:border-slate-800 overflow-y-auto max-h-[650px] space-y-3">
             <h4 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title || 'Chưa có tiêu đề'}</h4>
             <div className="text-slate-800 dark:text-slate-200 text-sm leading-relaxed">
               <MathText text={content || 'Chưa có nội dung...'} />
             </div>
+
+            {/* 🔽 MỚI: LIVE PREVIEW GEOGEBRA */}
+            {geogebraId && <GeoGebraEmbed materialId={geogebraId} />}
 
             {/* Preview Media đính kèm */}
             {attachments.length > 0 && (
@@ -270,23 +423,18 @@ const AdminFeed = ({ adminToken }) => {
                 <span className="text-xs text-amber-600 dark:text-amber-400 font-bold block">📁 Xem trước phương tiện đính kèm:</span>
                 {attachments.map((att, i) => (
                   <div key={i} className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2">
-                    {/* Xem trước Ảnh */}
                     {att.type.startsWith('image/') && (
                       <div className="space-y-1">
                         <img src={att.url} alt="" className="w-full max-h-[350px] object-contain rounded-lg bg-slate-100 dark:bg-black/50 border border-slate-200 dark:border-slate-800" />
                         <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate font-medium">🖼️ {att.name}</span>
                       </div>
                     )}
-
-                    {/* Xem trước Video */}
                     {att.type.startsWith('video/') && (
                       <div className="space-y-1">
                         <video src={att.url} controls className="w-full max-h-[350px] rounded-lg bg-black shadow-sm" />
                         <span className="text-[11px] text-slate-500 dark:text-slate-400 block truncate font-medium">🎬 {att.name}</span>
                       </div>
                     )}
-
-                    {/* Khung nhúng xem trước PDF */}
                     {att.type === 'application/pdf' && (
                       <div className="space-y-2">
                         <div className="flex justify-between items-center bg-blue-50 dark:bg-blue-950/40 p-2 rounded-lg border border-blue-200 dark:border-blue-900/40">
@@ -304,6 +452,9 @@ const AdminFeed = ({ adminToken }) => {
                 ))}
               </div>
             )}
+
+            {/* 🔽 MỚI: LIVE PREVIEW QUIZZES */}
+            {quizzes.length > 0 && <QuizInteractive quizzes={quizzes} />}
           </div>
         </div>
       </div>
@@ -319,17 +470,20 @@ const AdminFeed = ({ adminToken }) => {
               const postId = post._id || post.id;
               return (
                 <div key={postId} className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/60 text-sm space-y-3">
-                  
-                  {/* Thông tin Bài viết & Nút Xóa bài */}
                   <div className="flex justify-between items-center">
                     <div>
                       <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-semibold mr-2 border border-blue-200 dark:border-blue-800">
                         Lớp {post.grade}
                       </span>
                       <span className="font-semibold text-slate-800 dark:text-slate-100">{post.title}</span>
-                      {post.attachments?.length > 0 && (
-                        <span className="text-xs text-amber-600 dark:text-amber-400 font-medium ml-2">
-                          📎 ({post.attachments.length} file)
+                      {post.geogebraId && (
+                        <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium ml-2">
+                          📐 GeoGebra: {post.geogebraId}
+                        </span>
+                      )}
+                      {post.quizzes?.length > 0 && (
+                        <span className="text-xs text-indigo-600 dark:text-indigo-400 font-medium ml-2">
+                          ❓ ({post.quizzes.length} câu quiz)
                         </span>
                       )}
                     </div>
@@ -341,7 +495,7 @@ const AdminFeed = ({ adminToken }) => {
                     </button>
                   </div>
 
-                  {/* Danh sách Bình luận & Nút Xóa Bình luận */}
+                  {/* Danh sách Bình luận & Nút Xóa */}
                   {post.comments && post.comments.length > 0 && (
                     <div className="pt-2 border-t border-slate-200 dark:border-slate-700/60 space-y-1.5 pl-2">
                       <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">

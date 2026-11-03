@@ -37,12 +37,24 @@ const Student = mongoose.model('Student', studentSchema);
 
 // 2. Schema Bài Viết (Posts)
 const postSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
-  grade: { type: String, required: true },
-  content: { type: String, required: true },
-  attachments: { type: Array, default: [] },
-  likes: { type: Number, default: 0 },
+  content: { type: String, required: true }, // Hỗ trợ Markdown/KaTeX
+  author: { type: String, default: 'Thầy Phúc' },
+  mediaUrl: { type: String, default: '' },
+  
+  // 1. Tích hợp GeoGebra Applet
+  geogebraId: { type: String, default: '' }, // Ví dụ: "m7v2wz8x" hoặc đường link GeoGebra
+
+  // 2. Kho Bài tập Interactive (Quiz)
+  quizzes: [{
+    id: { type: String, default: () => new mongoose.Types.ObjectId().toString() },
+    type: { type: String, enum: ['multiple_choice', 'short_answer'], default: 'multiple_choice' },
+    question: { type: String, required: true }, // Nội dung câu hỏi (hỗ trợ KaTeX)
+    options: [{ type: String }], // Các lựa chọn cho dạng multiple_choice (vd: ["A. x=1", "B. x=2"])
+    correctAnswer: { type: String, required: true }, // Đáp án đúng (vd: "A" hoặc "2.5")
+    explanation: { type: String, default: '' } // Lời giải chi tiết
+  }],
+
   createdAt: { type: Date, default: Date.now }
 });
 const Post = mongoose.model('Post', postSchema);
@@ -481,9 +493,10 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
+// POST /api/posts - Tạo bài viết mới kèm GeoGebra & Quizzes
 app.post('/api/posts', authenticateAdmin, async (req, res) => {
   try {
-    const { title, content, grade, attachments } = req.body;
+    const { title, content, grade, attachments, geogebraId, quizzes } = req.body;
     if (!title || !content || !grade) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ tiêu đề, nội dung và khối lớp.' });
     }
@@ -494,6 +507,8 @@ app.post('/api/posts', authenticateAdmin, async (req, res) => {
       content: content.trim(),
       grade: String(grade),
       attachments: attachments || [],
+      geogebraId: geogebraId ? geogebraId.trim() : '',
+      quizzes: Array.isArray(quizzes) ? quizzes : [],
       likes: 0,
       createdAt: new Date()
     });
@@ -501,7 +516,42 @@ app.post('/api/posts', authenticateAdmin, async (req, res) => {
     await newPost.save();
     res.status(201).json({ success: true, data: newPost, message: 'Đăng bài viết thành công!' });
   } catch (error) {
+    console.error('Lỗi khi tạo bài viết:', error);
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi đăng bài viết.' });
+  }
+});
+
+// PUT /api/posts/:id - Cập nhật bài viết hiện có
+app.put('/api/posts/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, grade, attachments, geogebraId, quizzes } = req.body;
+
+    let updatedPost = null;
+    const updateData = {
+      title: title?.trim(),
+      content: content?.trim(),
+      grade: grade ? String(grade) : undefined,
+      attachments: attachments || [],
+      geogebraId: geogebraId ? geogebraId.trim() : '',
+      quizzes: Array.isArray(quizzes) ? quizzes : []
+    };
+
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      updatedPost = await Post.findByIdAndUpdate(id, updateData, { new: true });
+    }
+    if (!updatedPost) {
+      updatedPost = await Post.findOneAndUpdate({ id: String(id) }, updateData, { new: true });
+    }
+
+    if (!updatedPost) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
+    }
+
+    res.json({ success: true, data: updatedPost, message: 'Cập nhật bài viết thành công!' });
+  } catch (error) {
+    console.error('Lỗi cập nhật bài viết:', error);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ khi cập nhật bài viết.' });
   }
 });
 
