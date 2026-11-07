@@ -37,10 +37,13 @@ const Student = mongoose.model('Student', studentSchema);
 
 // 2. Schema Bài Viết (Posts)
 const postSchema = new mongoose.Schema({
+  id: { type: String, default: () => Date.now().toString() },
   title: { type: String, required: true },
   content: { type: String, required: true }, // Hỗ trợ Markdown/KaTeX
   author: { type: String, default: 'Thầy Phúc' },
-  mediaUrl: { type: String, default: '' },
+  grade: { type: String, default: 'ALL' },
+  attachments: { type: Array, default: [] },
+  likes: { type: Number, default: 0 },
   
   // 1. Tích hợp GeoGebra Applet
   geogebraId: { type: String, default: '' }, // Ví dụ: "m7v2wz8x" hoặc đường link GeoGebra
@@ -51,7 +54,8 @@ const postSchema = new mongoose.Schema({
     type: { type: String, enum: ['multiple_choice', 'short_answer'], default: 'multiple_choice' },
     question: { type: String, required: true }, // Nội dung câu hỏi (hỗ trợ KaTeX)
     options: [{ type: String }], // Các lựa chọn cho dạng multiple_choice (vd: ["A. x=1", "B. x=2"])
-    correctAnswer: { type: String, required: true }, // Đáp án đúng (vd: "A" hoặc "2.5")
+    correctOption: { type: Number, default: 0 }, // Lưu index của đáp án trắc nghiệm đúng
+    correctAnswer: { type: String, default: '' }, // Đáp án đúng cho dạng short_answer
     explanation: { type: String, default: '' } // Lời giải chi tiết
   }],
 
@@ -69,6 +73,23 @@ const commentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 const Comment = mongoose.model('Comment', commentSchema);
+
+// 4. Schema Kết Quả Nộp Bài Học Sinh (Submissions)
+const submissionSchema = new mongoose.Schema({
+  postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
+  studentName: { type: String, required: true, trim: true },
+  answers: [
+    {
+      questionIndex: { type: Number, required: true },
+      userAnswer: { type: mongoose.Schema.Types.Mixed, default: '' },
+      isCorrect: { type: Boolean, default: false }
+    }
+  ],
+  score: { type: Number, required: true },
+  totalQuestions: { type: Number, required: true },
+  submittedAt: { type: Date, default: Date.now }
+});
+const Submission = mongoose.model('Submission', submissionSchema);
 
 // Thư viện Cloudinary & Storage
 const cloudinary = require('cloudinary').v2;
@@ -346,13 +367,12 @@ app.delete('/api/students/:id', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// API XÓA BÌNH LUẬN (CHỈ DÀNH CHO ADMIN - ĐÃ ĐỒNG BỘ ID)
+// API XÓA BÌNH LUẬN (CHỈ DÀNH CHO ADMIN)
 // ==========================================
 app.delete('/api/comments/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Tìm và xóa linh hoạt theo _id (Mongoose) hoặc id (custom String)
     let deletedComment = null;
     if (mongoose.Types.ObjectId.isValid(id)) {
       deletedComment = await Comment.findByIdAndDelete(id);
@@ -465,7 +485,54 @@ app.post('/api/students/rollover', authenticateAdmin, async (req, res) => {
 });
 
 // ==========================================
-// 14. EDUFEED API ENDPOINTS (ĐÃ BỔ SUNG LẤY KÈM COMMENTS)
+// 14. SUBMISSION API ENDPOINTS (LƯU VẾT & XEM BÀI NỘP)
+// ==========================================
+
+// POST /api/submissions - Học sinh nộp bài quiz
+app.post('/api/submissions', async (req, res) => {
+  try {
+    const { postId, studentName, answers, score, totalQuestions } = req.body;
+
+    if (!studentName || !studentName.trim() || !postId) {
+      return res.status(400).json({ success: false, message: 'Vui lòng cung cấp đầy đủ tên học sinh và ID bài viết.' });
+    }
+
+    const newSubmission = new Submission({
+      postId,
+      studentName: studentName.trim(),
+      answers: Array.isArray(answers) ? answers : [],
+      score: Number(score) || 0,
+      totalQuestions: Number(totalQuestions) || 0,
+      submittedAt: new Date()
+    });
+
+    await newSubmission.save();
+    res.status(201).json({ success: true, message: 'Nộp bài thành công!', data: newSubmission });
+  } catch (error) {
+    console.error('Lỗi khi lưu bài nộp:', error);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lưu bài làm.' });
+  }
+});
+
+// GET /api/submissions - Lấy kết quả làm bài của học sinh (Admin hoặc công khai)
+app.get('/api/submissions', async (req, res) => {
+  try {
+    const { postId } = req.query;
+    const filter = postId ? { postId } : {};
+
+    const submissions = await Submission.find(filter)
+      .populate('postId', 'title')
+      .sort({ submittedAt: -1 });
+
+    res.json({ success: true, data: submissions });
+  } catch (error) {
+    console.error('Lỗi khi lấy bài nộp:', error);
+    res.status(500).json({ success: false, message: 'Lỗi máy chủ khi lấy danh sách bài nộp.' });
+  }
+});
+
+// ==========================================
+// 15. EDUFEED API ENDPOINTS
 // ==========================================
 app.get('/api/posts', async (req, res) => {
   try {
@@ -473,7 +540,6 @@ app.get('/api/posts', async (req, res) => {
     const query = (grade && grade !== 'ALL') ? { grade: String(grade) } : {};
     const posts = await Post.find(query).sort({ createdAt: -1 }).lean();
 
-    // Lấy danh sách bình luận đính kèm cho từng bài viết
     const postsWithComments = await Promise.all(
       posts.map(async (post) => {
         const comments = await Comment.find({ 
@@ -569,7 +635,8 @@ app.delete('/api/posts/:id', authenticateAdmin, async (req, res) => {
     if (!deletedPost) return res.status(404).json({ success: false, message: 'Không tìm thấy bài viết.' });
 
     await Comment.deleteMany({ postId: String(id) });
-    res.json({ success: true, message: 'Đã xóa bài viết và các bình luận liên quan thành công.' });
+    await Submission.deleteMany({ postId: deletedPost._id }); // Tự động dọn dẹp submissions của bài viết
+    res.json({ success: true, message: 'Đã xóa bài viết và các dữ liệu liên quan thành công.' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Lỗi máy chủ khi xóa bài viết.' });
   }
@@ -627,7 +694,7 @@ app.post('/api/posts/:id/comments', async (req, res) => {
 });
 
 // ==========================================
-// 15. CẤU HÌNH PHỤC VỤ FRONTEND REACT (DIST)
+// 16. CẤU HÌNH PHỤC VỤ FRONTEND REACT (DIST)
 // ==========================================
 app.use(express.static(path.join(__dirname, 'client', 'dist')));
 
